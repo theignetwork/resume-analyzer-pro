@@ -50,20 +50,19 @@ export async function POST(request) {
     }
     
     try {
-      console.log("Preparing request to Affinda v3 API with workspace ID:", AFFINDA_WORKSPACE_ID);
+      console.log("Preparing request to Affinda API");
       
-      // Based on the documentation, the correct parameters for v3 API
+      // API request with correct parameters based on documentation
       const requestBody = {
         url: resume.file_url,
         wait: true,
         workspace: AFFINDA_WORKSPACE_ID,
-        documentType: "resume", // Explicitly setting document type to resume
-        customIdentifier: `resume-${resumeId}`
+        identifier: `resume-${resumeId}` // Not customIdentifier, just identifier
       };
       
-      console.log("Calling Affinda API v3...");
+      console.log("Calling Affinda API...");
       
-      // Use the v3 documents endpoint without extractor parameter in URL
+      // Use the main documents endpoint, no extractor in the URL
       const affindaResponse = await fetch('https://api.affinda.com/v3/documents', {
         method: 'POST',
         headers: {
@@ -75,7 +74,6 @@ export async function POST(request) {
       });
       
       console.log("Affinda response status:", affindaResponse.status);
-      console.log("Affinda response status text:", affindaResponse.statusText);
       
       // Get the raw response for better debugging
       const responseText = await affindaResponse.text();
@@ -93,41 +91,27 @@ export async function POST(request) {
       }
       
       // Parse the response as JSON
-      let parsedData;
-      try {
-        parsedData = JSON.parse(responseText);
-        console.log("Resume parsing complete, response structure:", Object.keys(parsedData));
-      } catch (jsonError) {
-        console.error("Error parsing JSON response:", jsonError);
-        throw new Error("Failed to parse API response as JSON");
-      }
+      const parsedData = JSON.parse(responseText);
+      console.log("Resume parsing complete");
       
       // Extract text based on v3 response structure
       let resumeText = '';
       
-      // The documentation suggests data is the main response field
-      if (parsedData.data) {
-        console.log("Data field found, keys:", Object.keys(parsedData.data));
-        
-        // Specific places where text might be found in the response
-        if (parsedData.data.content) {
-          resumeText = parsedData.data.content;
-          console.log("Found text in data.content");
-        } else if (parsedData.data.rawText) {
+      // Try to find the text in various locations in the response
+      if (parsedData.data && typeof parsedData.data === 'object') {
+        if (parsedData.data.rawText) {
           resumeText = parsedData.data.rawText;
           console.log("Found text in data.rawText");
+        } else if (parsedData.data.content) {
+          resumeText = parsedData.data.content;
+          console.log("Found text in data.content");
         } else if (parsedData.data.text) {
           resumeText = parsedData.data.text;
           console.log("Found text in data.text");
-        } else if (parsedData.data.textContent) {
-          resumeText = parsedData.data.textContent;
-          console.log("Found text in data.textContent");
         }
         
-        // Resume data might be in a more structured format in data.data
+        // Check if there's a deeper data structure
         if (!resumeText && parsedData.data.data) {
-          console.log("Looking in data.data, keys:", Object.keys(parsedData.data.data));
-          
           if (parsedData.data.data.rawText) {
             resumeText = parsedData.data.data.rawText;
             console.log("Found text in data.data.rawText");
@@ -138,7 +122,7 @@ export async function POST(request) {
         }
       }
       
-      // Check if the text is in the top level of the response
+      // Check in the root
       if (!resumeText) {
         if (parsedData.rawText) {
           resumeText = parsedData.rawText;
@@ -149,22 +133,49 @@ export async function POST(request) {
         }
       }
       
-      // As a last resort, try to extract text from the PDF
-      if (!resumeText && parsedData.pdf) {
-        console.log("No text found in structured data, but PDF URL is available:", parsedData.pdf);
-        resumeText = "PDF content available but text extraction failed";
+      // Last resort
+      if (!resumeText && parsedData.text) {
+        resumeText = parsedData.text;
+        console.log("Found text in text");
       }
       
+      // If still no text found, try a fallback extraction method
       if (!resumeText || resumeText.trim().length === 0) {
         console.error("No text could be extracted from the resume");
-        return NextResponse.json({ 
-          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.',
-          parsed_data: parsedData // Include the parsed data for debugging
-        }, { status: 400 });
+        
+        // Try direct text extraction
+        try {
+          console.log("Attempting text-only extraction as fallback...");
+          
+          const textExtractionResponse = await fetch('https://api.affinda.com/v3/documents/extract-text', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${AFFINDA_API_KEY}`
+            },
+            body: JSON.stringify({ url: resume.file_url })
+          });
+          
+          if (textExtractionResponse.ok) {
+            const textData = await textExtractionResponse.json();
+            if (textData.text) {
+              resumeText = textData.text;
+              console.log("Successfully extracted text with fallback method");
+            }
+          }
+        } catch (textError) {
+          console.error("Text extraction fallback also failed:", textError);
+        }
+        
+        if (!resumeText || resumeText.trim().length === 0) {
+          return NextResponse.json({ 
+            error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.'
+          }, { status: 400 });
+        }
       }
       
       console.log("Extracted resume text length:", resumeText.length);
-      console.log("First 100 chars of text:", resumeText.substring(0, 100));
       
       // Update the resume record with the parsed data
       const { error: updateError } = await supabase
@@ -172,7 +183,7 @@ export async function POST(request) {
         .update({ 
           resume_structured_data: parsedData,
           resume_text: resumeText,
-          parser_version: 'v3-documentType' // Track that we're using documentType approach
+          parser_version: 'v3-standard'
         })
         .eq('id', resumeId);
         
@@ -185,7 +196,7 @@ export async function POST(request) {
       
       return NextResponse.json({
         success: true,
-        message: "Resume parsed successfully with NextGen parser"
+        message: "Resume parsed successfully"
       });
       
     } catch (parseError) {
