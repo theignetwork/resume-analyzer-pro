@@ -1,12 +1,18 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Affinda API key and workspace ID from environment variables
+// Affinda API key from environment variable
 const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 const AFFINDA_WORKSPACE_ID = process.env.AFFINDA_WORKSPACE_ID;
 
 export async function POST(request) {
   try {
+    // Debug log environment variables (obscured for security)
+    console.log("API Key defined:", !!AFFINDA_API_KEY);
+    console.log("API Key prefix:", AFFINDA_API_KEY?.substring(0, 6));
+    console.log("Workspace ID defined:", !!AFFINDA_WORKSPACE_ID);
+    console.log("Workspace ID:", AFFINDA_WORKSPACE_ID);
+    
     // Check if API key is configured
     if (!AFFINDA_API_KEY) {
       console.error("Affinda API key not configured");
@@ -49,21 +55,46 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Resume has no file_url' }, { status: 400 });
     }
     
+    console.log("Resume file_url:", resume.file_url);
+    
     try {
-      console.log("Preparing request to Affinda v3 API with workspace ID:", AFFINDA_WORKSPACE_ID);
+      // Let's try to first verify the workspace exists
+      console.log("Verifying workspace...");
+      const workspaceResponse = await fetch(`https://api.affinda.com/v3/workspaces/${AFFINDA_WORKSPACE_ID}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${AFFINDA_API_KEY}`
+        }
+      });
+      
+      console.log("Workspace verification status:", workspaceResponse.status);
+      
+      if (!workspaceResponse.ok) {
+        const workspaceErrorText = await workspaceResponse.text();
+        console.error("Workspace verification error:", workspaceErrorText);
+        console.error("This suggests the workspace ID is invalid or the API key doesn't have access to it");
+      } else {
+        const workspace = await workspaceResponse.json();
+        console.log("Workspace verified:", workspace.name);
+      }
       
       // API v3 request with minimal required parameters
       const requestBody = {
         url: resume.file_url,
         wait: true,
         identifier: `resume-${resumeId}`,
-        workspace: AFFINDA_WORKSPACE_ID // Use the workspace ID from env var
+        workspace: AFFINDA_WORKSPACE_ID
       };
       
       console.log("Calling Affinda API v3...");
+      console.log("Request body:", JSON.stringify(requestBody));
       
-      // Use the v3 documents endpoint with the resume extractor
-      const affindaResponse = await fetch('https://api.affinda.com/v3/documents?extractor=resume', {
+      // Try without the extractor parameter first
+      const apiUrl = 'https://api.affinda.com/v3/documents';
+      console.log("API URL:", apiUrl);
+      
+      const affindaResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -78,52 +109,71 @@ export async function POST(request) {
       
       // Get the raw response for better debugging
       const responseText = await affindaResponse.text();
-      console.log("Response received, length:", responseText.length);
+      console.log("Raw response text:", responseText.substring(0, 1000)); // Log first 1000 chars
       
       if (!affindaResponse.ok) {
         console.error("Affinda API error response status:", affindaResponse.status);
+        
         try {
           // Try to parse error message for better reporting
           const errorData = JSON.parse(responseText);
+          console.error("Parsed error data:", JSON.stringify(errorData, null, 2));
           throw new Error(`Affinda API error: ${errorData.message || errorData.detail || affindaResponse.statusText}`);
-        } catch (e) {
-          throw new Error(`Affinda API error: ${affindaResponse.statusText}`);
+        } catch (parseError) {
+          console.error("Error parsing error response:", parseError);
+          throw new Error(`Affinda API error: ${affindaResponse.statusText}, Raw response: ${responseText.substring(0, 200)}`);
         }
       }
       
       // Parse the response as JSON
-      const parsedData = JSON.parse(responseText);
-      console.log("Resume parsing complete, response ID:", parsedData.identifier || parsedData.id);
+      let parsedData;
+      try {
+        parsedData = JSON.parse(responseText);
+        console.log("Parsed data structure:", Object.keys(parsedData));
+        console.log("Resume parsing complete, response ID:", parsedData.identifier || parsedData.id);
+      } catch (jsonError) {
+        console.error("Error parsing JSON response:", jsonError);
+        return NextResponse.json({ error: 'Error parsing API response' }, { status: 500 });
+      }
       
       // Extract the structured data and text (handling different possible response formats)
       // Note: v3 API has a different response structure
       let resumeText = '';
       
+      // Check various locations where the text might be found
+      console.log("Looking for resume text in response...");
+      
       // v3 API typically has the resume text in one of these locations
       if (parsedData.data && parsedData.data.rawText) {
         resumeText = parsedData.data.rawText;
+        console.log("Text found in parsedData.data.rawText");
       } else if (parsedData.data && parsedData.data.data && parsedData.data.data.rawText) {
         resumeText = parsedData.data.data.rawText;
+        console.log("Text found in parsedData.data.data.rawText");
       } else if (parsedData.rawText) {
         resumeText = parsedData.rawText;
+        console.log("Text found in parsedData.rawText");
       } else {
-        console.log("Searching deeper in response structure for text...");
+        console.log("Text not found in standard locations, searching deeper...");
         // Try to find text in a nested structure if it exists
         const jsonStr = JSON.stringify(parsedData);
         const textMatch = jsonStr.match(/"rawText":"([^"]+)"/);
         if (textMatch && textMatch[1]) {
           resumeText = textMatch[1];
+          console.log("Text found using regex");
         }
       }
       
       if (!resumeText || resumeText.trim().length === 0) {
         console.error("No text could be extracted from the resume");
         return NextResponse.json({ 
-          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.'
+          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.',
+          parsed_data: parsedData // Include the parsed data for debugging
         }, { status: 400 });
       }
       
       console.log("Extracted resume text length:", resumeText.length);
+      console.log("First 200 chars of text:", resumeText.substring(0, 200));
       
       // Update the resume record with the parsed data
       const { error: updateError } = await supabase
