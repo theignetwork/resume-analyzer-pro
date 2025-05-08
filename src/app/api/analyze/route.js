@@ -151,7 +151,7 @@ export async function POST(request) {
 
     console.log("📡 Calling Claude API...");
 
-    // Define the comprehensive prompt
+    // Define the comprehensive prompt with explicit instructions for ATS analysis
     const claudePrompt = `You are an expert resume analyzer and career coach. I need you to analyze my resume for a ${resume.job_title} position.
 
 ### RESUME TEXT
@@ -173,14 +173,26 @@ ${JSON.stringify({
   confidenceScores: confidenceScores 
 }, null, 2)}
 
+IMPORTANT: You must directly compare the ATS STRUCTURED DATA above against the JOB DESCRIPTION to assess:
+1. How well the ATS is parsing my resume
+2. How closely my resume matches the job requirements
+3. The quality of the ATS data (confidence scores, extracted skills, etc.)
+4. Whether key job requirements are detected by the ATS
+
 Please provide a comprehensive analysis with these exact sections:
 
 ## 1. OVERALL ASSESSMENT
-- Overall score: [0-100]
-- ATS compatibility score: [0-100]
-- Formatting score: [0-100]
-- Content quality score: [0-100]
-- Relevance score: [0-100]
+- Overall score: [0-100] (Calculate this as the weighted average of the below scores)
+- ATS compatibility score: [0-100] (Based on how well the ATS parsed my resume and confidence scores)
+- Formatting score: [0-100] (Based on structural parsing quality)
+- Content quality score: [0-100] (Based on effectiveness of content)
+- Relevance score: [0-100] (Based on keyword match between structured data and job description)
+
+When calculating these scores:
+- For ATS compatibility, look at confidence scores in the structured data
+- For relevance, compare the skills and experience in the ATS data to the job requirements
+- For content quality, evaluate the clarity and impact of parsed text
+- For formatting, assess completeness of section extraction
 
 Provide a brief explanation of these scores that highlights the most critical insights.
 
@@ -309,6 +321,19 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
       const extractedRelevanceScore = extractScore(analysisText, "relevance score");
       if (extractedRelevanceScore !== null) relevanceScore = extractedRelevanceScore;
       
+      // Apply score calibration to ensure reasonableness
+      if (atsScore < 40 && (formattingScore > 50 || contentScore > 50)) {
+        console.log("⚠️ ATS score seems too low, applying calibration");
+        atsScore = Math.max(atsScore, Math.min(formattingScore - 5, 65));
+      }
+      
+      // Calculate consistency of overall score
+      const calculatedAverage = Math.round((atsScore + formattingScore + contentScore + relevanceScore) / 4);
+      if (Math.abs(overallScore - calculatedAverage) > 15) {
+        console.log("⚠️ Overall score inconsistent with component scores, adjusting");
+        overallScore = Math.round(0.6 * overallScore + 0.4 * calculatedAverage);
+      }
+      
       // Extract lists
       const extractedStrengths = extractListItems(analysisText, "KEY STRENGTHS|STRENGTHS", "AREAS FOR IMPROVEMENT|IMPROVEMENT");
       if (extractedStrengths && extractedStrengths.length > 0) strengths = extractedStrengths;
@@ -322,28 +347,35 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
       const extractedKeywordAnalysis = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
       if (extractedKeywordAnalysis && extractedKeywordAnalysis.length > 0) keywordAnalysis = extractedKeywordAnalysis;
       
-      // Extract sections
-      const extractedSummary = extractSection(analysisText, "summary");
-      if (extractedSummary && (extractedSummary.original || extractedSummary.improved)) {
-        improvedSections.summary = extractedSummary;
+      // Extract sections with improved pattern matching
+      const patterns = {
+        summary: ["summary", "profile", "professional summary"],
+        experience: ["experience", "work experience", "employment"],
+        skills: ["skills", "qualifications", "expertise"],
+        education: ["education", "academic", "degree"]
+      };
+      
+      for (const [section, alternatives] of Object.entries(patterns)) {
+        const sectionPattern = alternatives.join("|");
+        try {
+          const extractedSection = extractSectionImproved(analysisText, sectionPattern);
+          if (extractedSection?.original || extractedSection?.improved) {
+            improvedSections[section] = extractedSection;
+          }
+        } catch (err) {
+          console.warn(`⚠️ Failed to extract ${section} section:`, err.message);
+        }
       }
       
-      const extractedExperience = extractSection(analysisText, "experience");
-      if (extractedExperience && (extractedExperience.original || extractedExperience.improved)) {
-        improvedSections.experience = extractedExperience;
+      // Populate default content if missing
+      if (!improvedSections.summary.original && !improvedSections.summary.improved) {
+        if (structuredData.summary) {
+          improvedSections.summary.original = structuredData.summary;
+          console.log("ℹ️ Using structured data for missing summary section");
+        }
       }
       
-      const extractedSkills = extractSection(analysisText, "skills");
-      if (extractedSkills && (extractedSkills.original || extractedSkills.improved)) {
-        improvedSections.skills = extractedSkills;
-      }
-      
-      const extractedEducation = extractSection(analysisText, "education");
-      if (extractedEducation && (extractedEducation.original || extractedEducation.improved)) {
-        improvedSections.education = extractedEducation;
-      }
-      
-      console.log("Data extraction completed successfully");
+      console.log("✅ Data extraction completed successfully");
     } catch (extractionError) {
       console.error("❌ Extraction error:", extractionError);
       // Continue with default data
@@ -431,7 +463,21 @@ function extractScore(text, sectionPattern) {
   try {
     const regex = new RegExp(`(${sectionPattern})\\s*:\\s*([0-9.]+)`, 'i');
     const match = text.match(regex);
-    return match ? parseFloat(match[2]) : null;
+    let score = match ? parseFloat(match[2]) : null;
+    
+    // Apply reasonableness checks
+    if (score !== null) {
+      // Ensure score is within valid range
+      score = Math.max(0, Math.min(100, score));
+      
+      // Apply minimum score for ATS
+      if (sectionPattern.includes('ATS') && score < 30) {
+        console.log(`ATS score seems too low (${score}), applying minimum threshold`);
+        score = Math.max(score, 30);
+      }
+    }
+    
+    return score;
   } catch (error) {
     console.error(`Error extracting score for ${sectionPattern}:`, error);
     return null;
@@ -517,5 +563,56 @@ function extractSection(text, sectionName) {
     console.error(`Error extracting ${sectionName} section:`, error);
     return { original: '', improved: '' };
   }
+}
+
+// Enhanced section extraction with multiple pattern attempts
+function extractSectionImproved(text, sectionPattern) {
+  // Try multiple formats for section headers
+  const patterns = [
+    // Format: ### Original Summary
+    new RegExp(`###\\s*Original\\s+(${sectionPattern})\\s*([\\s\\S]*?)(?=###\\s*Improved|###\\s*Original|##\\s*\\d+|$)`, 'i'),
+    // Format: Original Summary:
+    new RegExp(`Original\\s+(${sectionPattern})\\s*:([\\s\\S]*?)(?=Improved\\s+${sectionPattern}|Original\\s+|\\d+\\.\\s+|$)`, 'i'),
+    // Format without colon: Original Summary
+    new RegExp(`Original\\s+(${sectionPattern})\\s*([\\s\\S]*?)(?=Improved\\s+${sectionPattern}|Original\\s+|\\d+\\.\\s+|$)`, 'i'),
+    // Fallback pattern
+    new RegExp(`Original[\\s\\n]+(${sectionPattern})[\\s\\n]+([\\s\\S]*?)(?=Improved|Original|\\d+\\.\\s+|$)`, 'i')
+  ];
+  
+  const improvedPatterns = [
+    // Format: ### Improved Summary
+    new RegExp(`###\\s*Improved\\s+(${sectionPattern})\\s*([\\s\\S]*?)(?=###\\s*Original|###\\s*Improved|##\\s*\\d+|$)`, 'i'),
+    // Format: Improved Summary:
+    new RegExp(`Improved\\s+(${sectionPattern})\\s*:([\\s\\S]*?)(?=Original\\s+|Improved\\s+|\\d+\\.\\s+|$)`, 'i'),
+    // Format without colon: Improved Summary
+    new RegExp(`Improved\\s+(${sectionPattern})\\s*([\\s\\S]*?)(?=Original\\s+|Improved\\s+|\\d+\\.\\s+|$)`, 'i'),
+    // Fallback pattern
+    new RegExp(`Improved[\\s\\n]+(${sectionPattern})[\\s\\n]+([\\s\\S]*?)(?=Original|Improved|\\d+\\.\\s+|$)`, 'i')
+  ];
+  
+  let originalText = '';
+  let improvedText = '';
+  
+  // Try all original patterns
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match && match[2]) {
+      originalText = match[2].trim();
+      console.log(`Found original section with pattern: ${pattern.toString().substring(0, 40)}...`);
+      break;
+    }
+  }
+  
+  // Try all improved patterns
+  for (const pattern of improvedPatterns) {
+    const match = text.match(pattern);
+    if (match && match[2]) {
+      improvedText = match[2].trim();
+      console.log(`Found improved section with pattern: ${pattern.toString().substring(0, 40)}...`);
+      break;
+    }
+  }
+  
+  return { original: originalText, improved: improvedText };
 }
 
