@@ -150,6 +150,94 @@ export async function POST(request) {
     }
 
     console.log("📡 Calling Claude API...");
+
+    // Define the comprehensive prompt
+    const claudePrompt = `You are an expert resume analyzer and career coach. I need you to analyze my resume for a ${resume.job_title} position.
+
+### RESUME TEXT
+${resume.resume_text}
+
+### JOB DESCRIPTION
+${resume.job_description || "No job description provided"}
+
+### ATS STRUCTURED DATA
+This is how an Applicant Tracking System (ATS) sees my resume:
+${JSON.stringify({ 
+  personalInfo: structuredData.personalInfo, 
+  summary: structuredData.summary, 
+  skills: structuredData.skills, 
+  workExperience: structuredData.workExperience, 
+  education: structuredData.education, 
+  certifications: structuredData.certifications, 
+  languages: structuredData.languages, 
+  confidenceScores: confidenceScores 
+}, null, 2)}
+
+Please provide a comprehensive analysis with these exact sections:
+
+## 1. OVERALL ASSESSMENT
+- Overall score: [0-100]
+- ATS compatibility score: [0-100]
+- Formatting score: [0-100]
+- Content quality score: [0-100]
+- Relevance score: [0-100]
+
+Provide a brief explanation of these scores that highlights the most critical insights.
+
+## 2. KEY STRENGTHS
+Identify 3-5 specific strengths of my resume. Focus on what's working well compared to industry standards and ATS best practices. Be specific and provide examples from my resume.
+
+## 3. AREAS FOR IMPROVEMENT
+Identify 3-5 specific weaknesses or areas where my resume could be improved. Prioritize the most impactful changes I should make. Be specific and actionable.
+
+## 4. CRITICAL ATS ISSUES
+List any formatting, structural, or content issues that could cause ATS systems to reject my resume. Focus on the most critical problems that need immediate attention.
+
+## 5. KEYWORD ANALYSIS
+Identify important keywords from the job description that are missing from my resume. Prioritize by importance and relevance.
+
+## 6. IMPROVED CONTENT BY SECTION
+For each section below, copy the exact text from my resume then provide an improved version that addresses the issues you've identified. Optimize for both ATS compatibility and human readability.
+
+### Original Summary
+[Copy the exact summary/profile text from my resume]
+
+### Improved Summary
+[Your improved version that incorporates keywords, better structure, and stronger content]
+
+### Original Experience
+[Copy the exact experience section text from my resume]
+
+### Improved Experience
+[Your improved version that quantifies achievements, incorporates keywords, and highlights relevant skills]
+
+### Original Skills
+[Copy the exact skills section text from my resume]
+
+### Improved Skills
+[Your improved version that better organizes skills and incorporates missing keywords]
+
+### Original Education
+[Copy the exact education section text from my resume]
+
+### Improved Education
+[Your improved version, especially if education is relevant to the target position]
+
+## 7. ATS COMPATIBILITY ANALYSIS
+Based on the structured data provided, analyze how different ATS systems might interpret my resume:
+- Identify any sections with low confidence scores
+- Explain implications of the parsing results
+- Suggest specific formatting changes to improve ATS readability
+
+## 8. INDUSTRY-SPECIFIC RECOMMENDATIONS
+Provide specific recommendations for the ${resume.job_title} role in terms of:
+- Industry-specific keywords
+- Expected qualifications
+- Current trends in this field
+- How my resume compares to industry standards
+
+In your analysis, be specific, actionable, and practical. Explain the "why" behind each recommendation so I understand its importance. Focus on the most impactful changes I can make to improve my chances of getting interviews.`;
+
     const claudeResponse = await anthropic.messages.create({
       model: "claude-3-opus-20240229",
       max_tokens: 4000,
@@ -157,7 +245,7 @@ export async function POST(request) {
         role: "user",
         content: [{
           type: "text",
-          text: `You are an expert resume analyzer and career coach. I need you to analyze my resume for a ${resume.job_title} position.\n\nHere is the EXACT TEXT from my resume:\n\n${resume.resume_text}\n\nAnd here is the job description I'm targeting:\n\n${resume.job_description || "No job description provided"}\n\nAdditionally, I have structured data extracted by a professional resume parser. This represents how an ATS (Applicant Tracking System) might see my resume:\n\n${JSON.stringify({ personalInfo: structuredData.personalInfo, summary: structuredData.summary, skills: structuredData.skills, workExperience: structuredData.workExperience, education: structuredData.education, certifications: structuredData.certifications, languages: structuredData.languages, confidenceScores: confidenceScores }, null, 2)}\n\n[...CONTINUED PROMPT...]`
+          text: claudePrompt
         }]
       }]
     });
@@ -168,11 +256,40 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Claude returned no text' }, { status: 502 });
     }
 
+    // Extract specific pieces from the analysis
+    const overallScore = extractScore(analysisText, "overall score|overall assessment") || 75;
+    const atsScore = extractScore(analysisText, "ATS compatibility score|ATS score") || 70;
+    const formattingScore = extractScore(analysisText, "formatting score") || 75;
+    const contentScore = extractScore(analysisText, "content quality score|content score") || 75;
+    const relevanceScore = extractScore(analysisText, "relevance score") || 70;
+    
+    const strengths = extractListItems(analysisText, "KEY STRENGTHS|STRENGTHS", "AREAS FOR IMPROVEMENT|IMPROVEMENT");
+    const improvements = extractListItems(analysisText, "AREAS FOR IMPROVEMENT|IMPROVEMENT", "CRITICAL ATS ISSUES|ATS ISSUES");
+    const dangerAlerts = extractListItems(analysisText, "CRITICAL ATS ISSUES|ATS ISSUES", "KEYWORD ANALYSIS|KEYWORDS");
+    const keywordAnalysis = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
+    
+    const improvedSections = {
+      summary: extractSection(analysisText, "summary"),
+      experience: extractSection(analysisText, "experience"),
+      skills: extractSection(analysisText, "skills"),
+      education: extractSection(analysisText, "education")
+    };
+
     const { data: result, error: insertError } = await supabase.from('analyses').insert({
       resume_id: resumeId,
       raw_analysis: analysisText,
       structured_data: structuredData,
-      confidence_scores: confidenceScores
+      confidence_scores: confidenceScores,
+      overall_score: overallScore,
+      ats_score: atsScore,
+      formatting_score: formattingScore,
+      content_score: contentScore,
+      relevance_score: relevanceScore,
+      strengths: strengths,
+      improvements: improvements,
+      danger_alerts: dangerAlerts,
+      keyword_analysis: keywordAnalysis,
+      improved_sections: improvedSections
     }).select('id').single();
 
     if (insertError) {
@@ -185,6 +302,97 @@ export async function POST(request) {
   } catch (err) {
     console.error("❌ API route error:", err);
     return NextResponse.json({ error: 'Internal error: ' + err.message }, { status: 500 });
+  }
+}
+
+// Helper functions to extract information from Claude's response
+function extractScore(text, sectionPattern) {
+  const regex = new RegExp(`(${sectionPattern})\\s*:\\s*([0-9.]+)`, 'i');
+  const match = text.match(regex);
+  return match ? parseFloat(match[2]) : null;
+}
+
+function extractListItems(text, startSectionPattern, endSectionPattern) {
+  try {
+    const startRegex = new RegExp(`(${startSectionPattern})[:\\s]*`, 'i');
+    const startMatch = text.search(startRegex);
+    if (startMatch === -1) return [];
+    
+    const afterStart = text.substring(startMatch + text.substring(startMatch).match(startRegex)[0].length);
+    
+    let endMatch = -1;
+    if (endSectionPattern && endSectionPattern.length > 0) {
+      const endRegex = new RegExp(`(${endSectionPattern})`, 'i');
+      endMatch = afterStart.search(endRegex);
+    }
+    
+    let relevantText;
+    if (endMatch === -1) {
+      // If end section not found, take the next 1000 characters
+      relevantText = afterStart.substring(0, 1000);
+    } else {
+      relevantText = afterStart.substring(0, endMatch);
+    }
+    
+    // Extract bullet points or numbered items
+    const items = [];
+    const lines = relevantText.split('\n');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Match bullet points, numbers, or asterisks at the start of lines
+      if (trimmed.match(/^(\d+\.|\*|\-)\s+/)) {
+        const content = trimmed.replace(/^(\d+\.|\*|\-)\s+/, '').trim();
+        if (content.length > 0) {
+          items.push(content);
+        }
+      } 
+      // Only include continuation lines if there are already items and the line isn't just a number
+      else if (items.length > 0 && trimmed && 
+               !trimmed.match(/^#|^[A-Z].*:$/) && 
+               !trimmed.match(/^\d+\.?$/)) {
+        // Append to previous item if this looks like a continuation
+        if (!items[items.length - 1].endsWith('.')) {
+          items[items.length - 1] += ' ' + trimmed;
+        } else {
+          items.push(trimmed);
+        }
+      }
+    }
+    
+    // Filter out items that are just numbers or empty
+    return items
+      .filter(item => item.length > 0 && !item.match(/^\d+\.?$/))
+      .slice(0, 10);
+  } catch (error) {
+    console.error("Error extracting list items:", error);
+    return [];
+  }
+}
+
+function extractSection(text, sectionName) {
+  try {
+    // Log what we're looking for
+    console.log(`Extracting ${sectionName} section`);
+    
+    // Define the patterns with more precision
+    const originalPattern = new RegExp(`Original\\s+(${sectionName}):\\s*([\\s\\S]*?)(?=Improved\\s+|Original\\s+|\\d+\\.\\s+|$)`, 'i');
+    const improvedPattern = new RegExp(`Improved\\s+(${sectionName}):\\s*([\\s\\S]*?)(?=Original\\s+|Improved\\s+|\\d+\\.\\s+|$)`, 'i');
+    
+    // Extract the content
+    const originalMatch = text.match(originalPattern);
+    const improvedMatch = text.match(improvedPattern);
+    
+    // Get the content or provide a default message
+    const originalText = originalMatch && originalMatch[2] ? originalMatch[2].trim() : '';
+    const improvedText = improvedMatch && improvedMatch[2] ? improvedMatch[2].trim() : '';
+    
+    console.log(`${sectionName} extraction results: Original (${originalText.length} chars), Improved (${improvedText.length} chars)`);
+    
+    return { original: originalText, improved: improvedText };
+  } catch (error) {
+    console.error(`Error extracting ${sectionName} section:`, error);
+    return { original: '', improved: '' };
   }
 }
 
