@@ -23,7 +23,7 @@ export async function POST(request) {
       url: resume.file_url,
       wait: true,
       workspace: AFFINDA_WORKSPACE_ID,
-      documentType: "oprLIBoq",
+      documentType: "oprLlBoq",
       identifier: `resume-${resumeId}`
     };
 
