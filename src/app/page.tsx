@@ -1,5 +1,6 @@
-// Phase 1: Landing Page Component
+"use client";
 import React from 'react';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button"; // Assuming shadcn/ui button
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Assuming shadcn/ui card
 import { CheckCircle, BarChart2, Sparkles } from 'lucide-react'; // Icons
@@ -18,9 +19,14 @@ const LandingPage = () => {
           <span className="text-6xl font-bold text-primary animate-pulse">75</span>
           {/* Add shimmer/glow effect later */}
         </div>
-        <Button size="lg" className="mt-[-2rem] z-10 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-10 py-6 rounded-lg shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105">
-          UPLOAD RESUME
-        </Button>
+        
+        {/* Updated button with Link component */}
+        <Link href="/upload" passHref>
+          <Button size="lg" className="mt-[-2rem] z-10 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg px-10 py-6 rounded-lg shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all duration-300 transform hover:scale-105">
+            UPLOAD RESUME
+          </Button>
+        </Link>
+        
         <p className="text-sm text-muted-foreground mt-4">
           Real users improved their score from 62 → 88 in one click.
         </p>
@@ -78,7 +84,6 @@ const LandingPage = () => {
           {/* Add more placeholder FAQs */} 
         </div>
       </div>
-
     </div>
   );
 };
