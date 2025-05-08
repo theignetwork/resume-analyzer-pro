@@ -242,7 +242,7 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
     let claudeResponse;
     try {
       claudeResponse = await anthropic.messages.create({
-        model: "claude-3-sonnet-20240229",
+        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         messages: [{
           role: "user",
