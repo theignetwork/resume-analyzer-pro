@@ -1,2 +1,2 @@
 [functions]
-  timeout = 26  # This is the maximum for standard Netlify plans (26 seconds)
+  timeout_seconds = 26
