@@ -79,48 +79,16 @@ const UploadPage = () => {
 
       const { data: resumeData, error: dbError } = await supabase
         .from('resumes')
-        .insert({
-          file_name: fileName,
-          job_title: jobTitle,
-          job_description: jobDescription,
-          file_url: fileUrl,
-          documentType: 'oprLlBoq'
-        })
+        .insert({ file_name: fileName, job_title: jobTitle, job_description: jobDescription, file_url: fileUrl })
         .select('id')
         .single();
 
       if (dbError) throw dbError;
 
-      const resumeId = resumeData.id;
-
-      // Wait for parser to populate resume_text (polling every 2 seconds, max 20 seconds)
-      let parsed = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        const { data: updatedResume, error: pollError } = await supabase
-          .from('resumes')
-          .select('resume_text')
-          .eq('id', resumeId)
-          .single();
-
-        if (pollError) throw pollError;
-
-        if (updatedResume?.resume_text) {
-          parsed = true;
-          break;
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-
-      if (!parsed) {
-        throw new Error('Resume parsing timed out. Please try again.');
-      }
-
-      // Trigger analysis API
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeId })
+        body: JSON.stringify({ resumeId: resumeData.id })
       });
 
       const analyzeData = await analyzeResponse.json();
@@ -129,7 +97,6 @@ const UploadPage = () => {
         throw new Error(analyzeData.error || 'Failed to analyze resume');
       }
 
-      localStorage.setItem('currentAnalysisId', analyzeData.analysisId);
       router.push(`/analyzing?id=${analyzeData.analysisId}`);
 
     } catch (err) {
@@ -203,4 +170,5 @@ const UploadPage = () => {
 };
 
 export default UploadPage;
+
 
