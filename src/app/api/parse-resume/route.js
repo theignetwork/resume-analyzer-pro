@@ -24,7 +24,7 @@ export async function POST(request) {
       wait: true,
       workspace: AFFINDA_WORKSPACE_ID,
       identifier: `resume-${resumeId}`,
-      documentType: 'resume' // explicitly specify document type for better accuracy
+      documentType: "oprLIBoq", // ✅ This is the key line
     };
 
     const affindaResponse = await fetch('https://api.affinda.com/v3/documents', {
