@@ -157,108 +157,34 @@ export async function POST(request) {
         role: "user",
         content: [{
           type: "text",
-          text: `You are an expert resume analyzer and career coach. I need you to analyze my resume for a ${resume.job_title} position.
-
-Here is the EXACT TEXT from my resume:
-
-${resume.resume_text}
-
-And here is the job description I'm targeting:
-
-${resume.job_description || "No job description provided"}
-
-Additionally, I have structured data extracted by a professional resume parser. This represents how an ATS (Applicant Tracking System) might see my resume:
-
-${JSON.stringify({
-  personalInfo: structuredData.personalInfo,
-  summary: structuredData.summary,
-  skills: structuredData.skills,
-  workExperience: structuredData.workExperience,
-  education: structuredData.education,
-  certifications: structuredData.certifications,
-  languages: structuredData.languages,
-  confidenceScores: confidenceScores
-}, null, 2)}
-
-Please analyze how well my resume matches this job description and provide your feedback in this EXACT format:
-
-1. OVERALL ASSESSMENT:
-   - Overall score: [0-100]
-   - ATS compatibility score: [0-100] (Use the confidence scores provided to help with this)
-   - Formatting score: [0-100]
-   - Content quality score: [0-100]
-   - Relevance score: [0-100]
-
-   [Brief explanation of scores]
-
-2. KEY STRENGTHS:
-   - [Strength 1]
-   - [Strength 2]
-   - [Strength 3]
-
-3. AREAS FOR IMPROVEMENT:
-   - [Improvement 1]
-   - [Improvement 2]
-   - [Improvement 3]
-
-4. CRITICAL ATS ISSUES:
-   - [ATS issue 1]
-   - [ATS issue 2]
-
-5. IMPROVED CONTENT BY SECTION:
-
-Original Profile:
-[Copy the exact profile/summary text from my resume provided above]
-
-Improved Profile:
-[Your improved version of the profile text]
-
-Original Experience:
-[Copy the exact experience section text from my resume provided above]
-
-Improved Experience:
-[Your improved version of the experience section]
-
-Original Skills:
-[Copy the exact skills section text from my resume provided above]
-
-Improved Skills:
-[Your improved version of the skills section]
-
-Original Education:
-[Copy the exact education section text from my resume provided above]
-
-Improved Education:
-[Your improved version of the education section]
-
-6. KEYWORD ANALYSIS:
-   - [Missing keyword 1]
-   - [Missing keyword 2]
-   - [Missing keyword 3]
-
-IMPORTANT: When extracting the original content, copy and paste EXACTLY from the resume text I provided above. Don't make up content or summarize what you think is there - use the actual text. Use "Original [Section Name]:" and "Improved [Section Name]:" as the exact headings.
-
-IMPORTANT: For low-confidence sections (below 0.7 in confidence score), pay special attention and suggest improvements that would help ATS systems better parse these sections.`
+          text: `You are an expert resume analyzer and career coach. I need you to analyze my resume for a ${resume.job_title} position.\n\nHere is the EXACT TEXT from my resume:\n\n${resume.resume_text}\n\nAnd here is the job description I'm targeting:\n\n${resume.job_description || "No job description provided"}\n\nAdditionally, I have structured data extracted by a professional resume parser. This represents how an ATS (Applicant Tracking System) might see my resume:\n\n${JSON.stringify({ personalInfo: structuredData.personalInfo, summary: structuredData.summary, skills: structuredData.skills, workExperience: structuredData.workExperience, education: structuredData.education, certifications: structuredData.certifications, languages: structuredData.languages, confidenceScores: confidenceScores }, null, 2)}\n\n[...CONTINUED PROMPT...]`
         }]
       }]
     });
 
-    let analysisText = '';
-    try {
-      analysisText = claudeResponse?.content?.[0]?.text || '';
-    } catch (err) {
-      console.error("⚠️ Failed accessing Claude response text:", err);
+    const analysisText = claudeResponse?.content?.[0]?.text || '';
+    if (!analysisText.length) {
+      console.error("❌ Claude returned empty");
+      return NextResponse.json({ error: 'Claude returned no text' }, { status: 502 });
     }
 
-    if (!analysisText || !analysisText.length) {
-      console.error("❌ Claude returned an empty response", JSON.stringify(claudeResponse, null, 2));
-      return NextResponse.json({ error: "Claude returned no text" }, { status: 502 });
+    const { data: result, error: insertError } = await supabase.from('analyses').insert({
+      resume_id: resumeId,
+      raw_analysis: analysisText,
+      structured_data: structuredData,
+      confidence_scores: confidenceScores
+    }).select('id').single();
+
+    if (insertError) {
+      console.error("❌ Failed to save analysis:", insertError.message);
+      return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, rawAnalysis: analysisText });
+    return NextResponse.json({ success: true, analysisId: result.id });
 
   } catch (err) {
     console.error("❌ API route error:", err);
     return NextResponse.json({ error: 'Internal error: ' + err.message }, { status: 500 });
   }
 }
+
