@@ -1,10 +1,4 @@
-antml:invoke name="artifacts"
-antml:parameter name="command">create</parameter>
-antml:parameter name="id">analyze-route</parameter>
-antml:parameter name="type">application/vnd.ant.code</parameter>
-antml:parameter name="language">javascript</parameter>
-antml:parameter name="title">Fixed Analyze API Route</parameter>
-antml:parameter name="content">import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -523,6 +517,5 @@ function extractSection(text, sectionName) {
     console.error(`Error extracting ${sectionName} section:`, error);
     return { original: '', improved: '' };
   }
-}</parameter>
-</invoke>
+}
 
