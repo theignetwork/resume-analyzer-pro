@@ -85,6 +85,19 @@ const UploadPage = () => {
 
       if (dbError) throw dbError;
 
+      // Parse the resume with Affinda first
+      const parseResponse = await fetch('/api/parse-resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeId: resumeData.id })
+      });
+
+      const parseData = await parseResponse.json();
+      if (!parseResponse.ok) {
+        throw new Error(parseData.error || 'Resume parsing failed');
+      }
+
+      // Then analyze the parsed resume
       const analyzeResponse = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -170,5 +183,6 @@ const UploadPage = () => {
 };
 
 export default UploadPage;
+
 
 
