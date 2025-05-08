@@ -79,7 +79,6 @@ const UploadPage = () => {
       
       // 1. Upload PDF to Supabase Storage
       console.log("Uploading file to Supabase Storage...");
-      const fileExt = fileName.split('.').pop();
       const filePath = `resumes/${Date.now()}-${fileName}`;
       
       const { data: fileData, error: uploadError } = await supabase.storage
@@ -132,7 +131,6 @@ const UploadPage = () => {
     }
   };
 
-  // Return the UI (unchanged from your original code)
   return (
     <div className="flex flex-col items-center text-center space-y-8">
       <h1 className="text-4xl font-bold text-white">RESUME ANALYZER PRO</h1>
@@ -208,6 +206,5 @@ const UploadPage = () => {
 };
 
 export default UploadPage;
-
 
 
