@@ -1,55 +1,69 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, AlertCircle, XCircle, FileText, User, Briefcase, GraduationCap, Tag, Copy } from 'lucide-react';
+import { 
+  CheckCircle, AlertCircle, XCircle, FileText, User, Briefcase, 
+  GraduationCap, Tag, Copy, Clock, Award, BookOpen 
+} from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-// Sample data structure based on available Affinda data
 const ATSOptimizationReport = () => {
-  // State for active tab
-  const [activeTab, setActiveTab] = useState("overview");
+  // State for active tab and analysis data
+  const [activeTab, setActiveTab] = useState("ats-optimization");
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const router = useRouter();
   
-  // Sample data (in a real implementation, this would come from props)
-  const analysis = {
-    ats_score: 30,
-    formatting_score: 50,
-    content_score: 40,
-    relevance_score: 20,
-    keyword_analysis: [
-      "Marketing", "Analytics/Analysis", "Insights", "Research", 
-      "Trends", "Data management", "Dashboards", "Metrics", 
-      "Project management", "Data visualization"
-    ],
-    danger_alerts: [
-      "Resume is not optimally formatted for ATS parsing - section headings should be standardized",
-      "Missing many important keywords from the job description that need to be naturally incorporated"
-    ],
-    parsed_data: {
-      sections: [
-        { sectionType: "PersonalDetails", text: "First Name Last Name...", confidence: 0.95 },
-        { sectionType: "Summary", text: "This is where you write what work...", confidence: 0.88 },
-        { sectionType: "WorkExperience", text: "Experience...", confidence: 0.92 },
-        { sectionType: "Education", text: "Education...", confidence: 0.90 },
-        { sectionType: "Skills/Interests/Languages", text: "Interest...", confidence: 0.75 }
-      ],
-      skills: [
-        { name: "Management", type: "common_skill", confidence: 0.85 },
-        { name: "Service Management", type: "specialized_skill", confidence: 0.78 },
-        { name: "Punctuation and Capitalization", type: "specialized_skill", confidence: 0.65 },
-        { name: "Apple Numbers", type: "specialized_skill", confidence: 0.72 }
-      ],
-      missing_expected_sections: ["Projects", "Certifications", "Professional Summary"],
-      problematic_formatting: [
-        "Inconsistent date formats (01 / 2015 vs 2015)",
-        "Missing standard section headers",
-        "Bullet points without proper formatting"
-      ]
-    }
-  };
-
+  useEffect(() => {
+    const fetchAnalysis = async () => {
+      const analysisId = localStorage.getItem('currentAnalysisId');
+      if (!analysisId) {
+        setError('No analysis found. Please upload a resume first.');
+        setLoading(false);
+        return;
+      }
+      
+      try {
+        // Fetch analysis data from Supabase
+        const { data, error } = await supabase
+          .from('analyses')
+          .select(`
+            *,
+            resume:resume_id(
+              job_title,
+              job_description,
+              file_name,
+              file_url,
+              parser_version
+            )
+          `)
+          .eq('id', analysisId)
+          .single();
+          
+        if (error) throw error;
+        
+        console.log("Analysis data for ATS:", data);
+        console.log("Structured data:", data?.structured_data);
+        console.log("Confidence scores:", data?.confidence_scores);
+        
+        setAnalysis(data);
+      } catch (err) {
+        console.error('Error fetching analysis:', err);
+        setError('Failed to load analysis results. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchAnalysis();
+  }, []);
+  
   // Helper function to get score color
   const getScoreColor = (score) => {
     if (score >= 70) return "text-green-500";
@@ -59,10 +73,148 @@ const ATSOptimizationReport = () => {
 
   // Helper function to get confidence indicator
   const ConfidenceIndicator = ({ confidence }) => {
+    if (!confidence && confidence !== 0) return null;
+    
     if (confidence >= 0.85) return <CheckCircle className="w-4 h-4 text-green-500" />;
     if (confidence >= 0.7) return <AlertCircle className="w-4 h-4 text-yellow-500" />;
     return <XCircle className="w-4 h-4 text-red-500" />;
   };
+  
+  // Function to determine section icon
+  const getSectionIcon = (sectionType) => {
+    switch(sectionType.toLowerCase()) {
+      case 'personaldetails':
+      case 'contact': 
+        return <User className="w-4 h-4 text-primary" />;
+      case 'workexperience':
+      case 'experience':
+      case 'employment':
+        return <Briefcase className="w-4 h-4 text-primary" />;
+      case 'education':
+        return <GraduationCap className="w-4 h-4 text-primary" />;
+      case 'summary':
+      case 'profile':
+      case 'objective':
+        return <FileText className="w-4 h-4 text-primary" />;
+      case 'skills':
+      case 'skills/interests/languages':
+        return <Tag className="w-4 h-4 text-primary" />;
+      case 'certifications':
+      case 'licenses':
+        return <Award className="w-4 h-4 text-primary" />;
+      case 'projects':
+        return <BookOpen className="w-4 h-4 text-primary" />;
+      default:
+        return <FileText className="w-4 h-4 text-primary" />;
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <p className="text-lg text-primary">Loading ATS analysis...</p>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="flex flex-col items-center text-center space-y-8">
+        <h1 className="text-4xl font-bold text-white">RESUME ANALYZER PRO</h1>
+        <div className="p-6 bg-red-900/30 rounded-lg max-w-2xl">
+          <p className="text-red-200">{error}</p>
+          <button 
+            className="mt-4 px-6 py-2 bg-primary rounded-lg"
+            onClick={() => router.push('/upload')}
+          >
+            Go Back to Upload
+          </button>
+        </div>
+      </div>
+    );
+  }
+  
+  // Extract the structured data if available
+  const structuredData = analysis?.structured_data || {};
+  const confidenceScores = analysis?.confidence_scores || {};
+  
+  // Get skills and sections from structured data
+  const skills = structuredData.skills || [];
+  const resumeSections = [];
+  
+  // Build sections array from structured data
+  if (structuredData.summary) {
+    resumeSections.push({ 
+      sectionType: "Summary", 
+      text: structuredData.summary, 
+      confidence: confidenceScores.sections?.summary || 0 
+    });
+  }
+  
+  if (structuredData.workExperience && structuredData.workExperience.length > 0) {
+    resumeSections.push({ 
+      sectionType: "WorkExperience", 
+      text: `${structuredData.workExperience.length} positions found`, 
+      confidence: confidenceScores.sections?.workExperience || 0
+    });
+  }
+  
+  if (structuredData.education && structuredData.education.length > 0) {
+    resumeSections.push({ 
+      sectionType: "Education", 
+      text: `${structuredData.education.length} entries found`, 
+      confidence: confidenceScores.sections?.education || 0
+    });
+  }
+  
+  if (structuredData.certifications && structuredData.certifications.length > 0) {
+    resumeSections.push({ 
+      sectionType: "Certifications", 
+      text: `${structuredData.certifications.length} certifications found`, 
+      confidence: confidenceScores.sections?.certifications || 0
+    });
+  }
+  
+  if (structuredData.personalInfo && Object.keys(structuredData.personalInfo).length > 0) {
+    resumeSections.push({ 
+      sectionType: "PersonalDetails", 
+      text: `Contact information found`, 
+      confidence: confidenceScores.sections?.personalInfo || 0.8
+    });
+  }
+  
+  // Check for missing expected sections
+  const missingExpectedSections = [];
+  if (!structuredData.summary) missingExpectedSections.push("Professional Summary");
+  if (!structuredData.skills || structuredData.skills.length === 0) missingExpectedSections.push("Skills");
+  
+  // Identify problematic formatting issues based on confidence scores
+  const problematicFormatting = [];
+  
+  if (confidenceScores.overall < 0.7) {
+    problematicFormatting.push("Overall low parsing confidence - resume format may be non-standard");
+  }
+  
+  if (confidenceScores.sections?.workExperience < 0.7) {
+    problematicFormatting.push("Work experience section not clearly formatted");
+  }
+  
+  if (confidenceScores.sections?.education < 0.7) {
+    problematicFormatting.push("Education section not clearly formatted");
+  }
+  
+  if (confidenceScores.sections?.skills < 0.7) {
+    problematicFormatting.push("Skills section not clearly identified or listed");
+  }
+  
+  // If we don't have enough data in structuredData, add generic formatting issues
+  if (Object.keys(structuredData).length < 3) {
+    problematicFormatting.push(
+      "Inconsistent date formats (use MM/YYYY format)",
+      "Missing standard section headers",
+      "Bullet points without proper formatting"
+    );
+  }
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8">
@@ -71,9 +223,9 @@ const ATSOptimizationReport = () => {
       {/* Tabs Navigation */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="overview" onClick={() => router.push('/results')}>Overview</TabsTrigger>
           <TabsTrigger value="ats-optimization" className="bg-primary text-primary-foreground">ATS Optimization</TabsTrigger>
-          <TabsTrigger value="improved-content">Improved Content</TabsTrigger>
+          <TabsTrigger value="improved-content" onClick={() => router.push('/results/improved')}>Improved Content</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="report">Report</TabsTrigger>
         </TabsList>
@@ -117,10 +269,12 @@ const ATSOptimizationReport = () => {
               </div>
               <p className="text-center text-muted-foreground text-sm mb-4">
                 This score represents how well your resume will perform in Applicant Tracking Systems.
-                A score below 50 means your resume may be rejected before a human sees it.
+                {analysis.ats_score < 50 && 
+                  " A score below 50 means your resume may be rejected before a human sees it."}
               </p>
               <div className="w-full">
-                <Button className="w-full bg-primary hover:bg-primary/90">
+                <Button className="w-full bg-primary hover:bg-primary/90"
+                  onClick={() => router.push('/results/improved')}>
                   View Improvement Suggestions
                 </Button>
               </div>
@@ -141,14 +295,10 @@ const ATSOptimizationReport = () => {
               </p>
               
               <div className="space-y-4">
-                {analysis.parsed_data.sections.map((section, index) => (
+                {resumeSections.map((section, index) => (
                   <div key={index} className="flex items-center justify-between border-b border-gray-700 pb-2">
                     <div className="flex items-center gap-2">
-                      {section.sectionType === "PersonalDetails" && <User className="w-4 h-4 text-primary" />}
-                      {section.sectionType === "WorkExperience" && <Briefcase className="w-4 h-4 text-primary" />}
-                      {section.sectionType === "Education" && <GraduationCap className="w-4 h-4 text-primary" />}
-                      {section.sectionType === "Summary" && <FileText className="w-4 h-4 text-primary" />}
-                      {section.sectionType === "Skills/Interests/Languages" && <Tag className="w-4 h-4 text-primary" />}
+                      {getSectionIcon(section.sectionType)}
                       <span className="text-white">{section.sectionType}</span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -162,14 +312,14 @@ const ATSOptimizationReport = () => {
               </div>
               
               {/* Missing Sections Alert */}
-              {analysis.parsed_data.missing_expected_sections.length > 0 && (
+              {missingExpectedSections.length > 0 && (
                 <div className="mt-4 p-3 bg-yellow-900/30 border border-yellow-900/50 rounded-md">
                   <h4 className="font-semibold text-yellow-300 mb-1 flex items-center">
                     <AlertCircle className="w-4 h-4 mr-1" />
                     Missing Expected Sections
                   </h4>
                   <ul className="ml-6 text-sm list-disc text-muted-foreground">
-                    {analysis.parsed_data.missing_expected_sections.map((section, index) => (
+                    {missingExpectedSections.map((section, index) => (
                       <li key={index}>{section}</li>
                     ))}
                   </ul>
@@ -190,17 +340,25 @@ const ATSOptimizationReport = () => {
                 These skills were automatically detected by the ATS from your resume.
               </p>
               <div className="space-y-2">
-                {analysis.parsed_data.skills.map((skill, index) => (
-                  <div key={index} className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <ConfidenceIndicator confidence={skill.confidence} />
-                      <span className="text-white">{skill.name}</span>
+                {skills.length > 0 ? (
+                  skills.map((skill, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <ConfidenceIndicator confidence={skill.confidence} />
+                        <span className="text-white">{skill.name}</span>
+                      </div>
+                      {skill.level && (
+                        <Badge variant="outline" className="text-xs">
+                          {skill.level}
+                        </Badge>
+                      )}
                     </div>
-                    <Badge variant={skill.type === "common_skill" ? "outline" : "default"} className="text-xs">
-                      {skill.type === "common_skill" ? "Common" : "Specialized"}
-                    </Badge>
-                  </div>
-                ))}
+                  ))
+                ) : (
+                  <p className="text-muted-foreground">
+                    No skills were automatically detected. Consider adding a clearly labeled skills section.
+                  </p>
+                )}
               </div>
               
               <div className="mt-6 p-3 bg-primary/10 border border-primary/30 rounded-md">
@@ -226,14 +384,20 @@ const ATSOptimizationReport = () => {
               </p>
               
               <div className="flex flex-wrap gap-2 mb-6">
-                {analysis.keyword_analysis.map((keyword, index) => (
-                  <Badge 
-                    key={index} 
-                    className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/20 px-3 py-1"
-                  >
-                    {keyword}
-                  </Badge>
-                ))}
+                {analysis?.keyword_analysis?.filter(item => item && item.trim()).length > 0 ? (
+                  analysis.keyword_analysis
+                    .filter(item => item && item.trim())
+                    .map((keyword, index) => (
+                      <Badge 
+                        key={index} 
+                        className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/20 px-3 py-1"
+                      >
+                        {keyword}
+                      </Badge>
+                    ))
+                ) : (
+                  <p className="text-muted-foreground">No keyword gaps identified.</p>
+                )}
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -280,12 +444,21 @@ const ATSOptimizationReport = () => {
                   Critical ATS Issues
                 </h3>
                 <ul className="space-y-3">
-                  {analysis.danger_alerts.map((alert, index) => (
-                    <li key={index} className="flex items-start">
-                      <XCircle className="text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>{alert}</span>
+                  {analysis?.danger_alerts?.filter(item => item && item.trim()).length > 0 ? (
+                    analysis.danger_alerts
+                      .filter(item => item && item.trim())
+                      .map((alert, index) => (
+                        <li key={index} className="flex items-start">
+                          <XCircle className="text-red-400 mr-2 mt-0.5 flex-shrink-0" />
+                          <span>{alert}</span>
+                        </li>
+                      ))
+                  ) : (
+                    <li className="flex items-start">
+                      <AlertCircle className="text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <span>No critical issues found. However, there's always room for improvement.</span>
                     </li>
-                  ))}
+                  )}
                 </ul>
               </div>
               
@@ -294,12 +467,19 @@ const ATSOptimizationReport = () => {
                 <div className="p-4 border border-gray-700 rounded-lg">
                   <h4 className="font-semibold text-white mb-3">Detected Formatting Issues</h4>
                   <ul className="space-y-2">
-                    {analysis.parsed_data.problematic_formatting.map((issue, index) => (
-                      <li key={index} className="flex items-start">
-                        <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
-                        <span className="text-muted-foreground">{issue}</span>
+                    {problematicFormatting.length > 0 ? (
+                      problematicFormatting.map((issue, index) => (
+                        <li key={index} className="flex items-start">
+                          <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                          <span className="text-muted-foreground">{issue}</span>
+                        </li>
+                      ))
+                    ) : (
+                      <li className="flex items-start">
+                        <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                        <span className="text-muted-foreground">No significant formatting issues detected</span>
                       </li>
-                    ))}
+                    )}
                   </ul>
                 </div>
                 
@@ -327,7 +507,10 @@ const ATSOptimizationReport = () => {
               </div>
               
               <div className="flex justify-center mt-6">
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                <Button 
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                  onClick={() => router.push('/results/improved')}
+                >
                   View Improved Content
                 </Button>
               </div>

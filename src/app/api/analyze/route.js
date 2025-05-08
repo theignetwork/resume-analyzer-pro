@@ -43,13 +43,174 @@ export async function POST(request) {
       
       console.log("Resume found:", resume.id, resume.file_name);
       console.log("Resume text available:", !!resume.resume_text);
+      console.log("Parser version:", resume.parser_version || "legacy");
       
       if (!resume.resume_text) {
         console.error("Resume has no extracted text");
         return NextResponse.json({ error: 'Resume has no extracted text' }, { status: 400 });
       }
       
-      // Call Claude API with the extracted text
+      // Extract structured data from Affinda NextGen parser response
+      let structuredData = {
+        summary: "",
+        skills: [],
+        workExperience: [],
+        education: [],
+        certifications: [],
+        languages: [],
+        personalInfo: {}
+      };
+      
+      let confidenceScores = {
+        overall: 0,
+        sections: {}
+      };
+      
+      // Process the structured data if available
+      if (resume.resume_structured_data) {
+        try {
+          const parsedData = resume.resume_structured_data;
+          console.log("Processing structured data from Affinda");
+          
+          // Log the structure to understand what we're working with
+          console.log("Top-level keys:", Object.keys(parsedData));
+          
+          // For v3 NextGen parser, data is typically under data.data
+          if (parsedData.data) {
+            console.log("Data keys:", Object.keys(parsedData.data));
+            
+            const data = parsedData.data;
+            
+            // Extract personal information
+            if (data.name) {
+              structuredData.personalInfo.name = data.name.raw;
+            }
+            if (data.phoneNumbers && data.phoneNumbers.length > 0) {
+              structuredData.personalInfo.phone = data.phoneNumbers[0].raw;
+            }
+            if (data.emails && data.emails.length > 0) {
+              structuredData.personalInfo.email = data.emails[0].raw;
+            }
+            if (data.location) {
+              structuredData.personalInfo.location = data.location.raw;
+            }
+            
+            // Extract summary/profile if available
+            if (data.summary && data.summary.raw) {
+              structuredData.summary = data.summary.raw;
+              if (data.summary.confidence) {
+                confidenceScores.sections.summary = data.summary.confidence;
+              }
+            }
+            
+            // Extract skills with confidence scores
+            if (data.skills && Array.isArray(data.skills)) {
+              console.log(`Found ${data.skills.length} skills`);
+              structuredData.skills = data.skills.map(skill => ({
+                name: skill.name || skill.raw,
+                level: skill.level || "",
+                confidence: skill.confidence || 0
+              }));
+              // Calculate average confidence
+              const skillConfidences = data.skills
+                .map(skill => skill.confidence)
+                .filter(score => typeof score === 'number');
+              if (skillConfidences.length > 0) {
+                confidenceScores.sections.skills = skillConfidences.reduce((a, b) => a + b, 0) / skillConfidences.length;
+              }
+            }
+            
+            // Extract work experience
+            if (data.workExperience && Array.isArray(data.workExperience)) {
+              console.log(`Found ${data.workExperience.length} work experiences`);
+              structuredData.workExperience = data.workExperience.map(job => ({
+                jobTitle: job.jobTitle?.raw || "",
+                organization: job.organization?.raw || "",
+                location: job.location?.raw || "",
+                dates: {
+                  startDate: job.dates?.startDate?.raw || "",
+                  endDate: job.dates?.endDate?.raw || ""
+                },
+                description: job.description || "",
+                // Some parsers return this as a string, others as an array
+                responsibilities: Array.isArray(job.responsibilities) 
+                  ? job.responsibilities.map(r => r.raw || r).join("\n") 
+                  : job.responsibilities || "",
+                achievements: Array.isArray(job.achievements)
+                  ? job.achievements.map(a => a.raw || a).join("\n")
+                  : job.achievements || "",
+                confidence: job.confidence || 0
+              }));
+              // Calculate average confidence
+              const jobConfidences = data.workExperience
+                .map(job => job.confidence)
+                .filter(score => typeof score === 'number');
+              if (jobConfidences.length > 0) {
+                confidenceScores.sections.workExperience = jobConfidences.reduce((a, b) => a + b, 0) / jobConfidences.length;
+              }
+            }
+            
+            // Extract education
+            if (data.education && Array.isArray(data.education)) {
+              console.log(`Found ${data.education.length} education entries`);
+              structuredData.education = data.education.map(edu => ({
+                institution: edu.organization?.raw || "",
+                degree: edu.accreditation?.education || edu.accreditation?.raw || "",
+                fieldOfStudy: edu.accreditation?.educationLevel || "",
+                dates: {
+                  startDate: edu.dates?.startDate?.raw || "",
+                  endDate: edu.dates?.endDate?.raw || ""
+                },
+                description: edu.description || "",
+                gpa: edu.grade || "",
+                confidence: edu.confidence || 0
+              }));
+              // Calculate average confidence
+              const eduConfidences = data.education
+                .map(edu => edu.confidence)
+                .filter(score => typeof score === 'number');
+              if (eduConfidences.length > 0) {
+                confidenceScores.sections.education = eduConfidences.reduce((a, b) => a + b, 0) / eduConfidences.length;
+              }
+            }
+            
+            // Extract certifications
+            if (data.certifications && Array.isArray(data.certifications)) {
+              console.log(`Found ${data.certifications.length} certifications`);
+              structuredData.certifications = data.certifications.map(cert => ({
+                name: cert.name || cert.raw || "",
+                issuer: cert.issuer || "",
+                date: cert.date || "",
+                confidence: cert.confidence || 0
+              }));
+            }
+            
+            // Extract languages
+            if (data.languages && Array.isArray(data.languages)) {
+              console.log(`Found ${data.languages.length} languages`);
+              structuredData.languages = data.languages.map(lang => ({
+                name: lang.name || lang.raw || "",
+                level: lang.level || "",
+                confidence: lang.confidence || 0
+              }));
+            }
+            
+            // Calculate overall confidence score (weighted average)
+            const sectionConfidences = Object.values(confidenceScores.sections).filter(score => typeof score === 'number');
+            if (sectionConfidences.length > 0) {
+              confidenceScores.overall = sectionConfidences.reduce((a, b) => a + b, 0) / sectionConfidences.length;
+            }
+            
+            console.log("Structured data extraction complete");
+            console.log("Confidence scores:", confidenceScores);
+          }
+        } catch (structureError) {
+          console.error("Error processing structured data:", structureError);
+          // Continue with the analysis even if structured data parsing fails
+        }
+      }
+      
+      // Call Claude API with both the extracted text and structured data
       console.log("Calling Claude API...");
       const response = await anthropic.messages.create({
         model: "claude-3-opus-20240229",
@@ -70,11 +231,24 @@ And here is the job description I'm targeting:
 
 ${resume.job_description || "No job description provided"}
 
+Additionally, I have structured data extracted by a professional resume parser. This represents how an ATS (Applicant Tracking System) might see my resume:
+
+${JSON.stringify({
+  personalInfo: structuredData.personalInfo,
+  summary: structuredData.summary,
+  skills: structuredData.skills,
+  workExperience: structuredData.workExperience,
+  education: structuredData.education,
+  certifications: structuredData.certifications,
+  languages: structuredData.languages,
+  confidenceScores: confidenceScores
+}, null, 2)}
+
 Please analyze how well my resume matches this job description and provide your feedback in this EXACT format:
 
 1. OVERALL ASSESSMENT:
    - Overall score: [0-100]
-   - ATS compatibility score: [0-100]
+   - ATS compatibility score: [0-100] (Use the confidence scores provided to help with this)
    - Formatting score: [0-100]
    - Content quality score: [0-100]
    - Relevance score: [0-100]
@@ -126,7 +300,9 @@ Improved Education:
    - [Missing keyword 2]
    - [Missing keyword 3]
 
-IMPORTANT: When extracting the original content, copy and paste EXACTLY from the resume text I provided above. Don't make up content or summarize what you think is there - use the actual text. Use "Original [Section Name]:" and "Improved [Section Name]:" as the exact headings.`
+IMPORTANT: When extracting the original content, copy and paste EXACTLY from the resume text I provided above. Don't make up content or summarize what you think is there - use the actual text. Use "Original [Section Name]:" and "Improved [Section Name]:" as the exact headings.
+
+IMPORTANT: For low-confidence sections (below 0.7 in confidence score), pay special attention and suggest improvements that would help ATS systems better parse these sections.`
               }
             ]
           }
@@ -159,7 +335,10 @@ IMPORTANT: When extracting the original content, copy and paste EXACTLY from the
             skills: extractSection(analysisText, "skills"),
             education: extractSection(analysisText, "education")
           },
-          keywordAnalysis: extractListItems(analysisText, "KEYWORD ANALYSIS", "")
+          keywordAnalysis: extractListItems(analysisText, "KEYWORD ANALYSIS", ""),
+          // Add the structured data and confidence scores for the frontend
+          structuredData: structuredData,
+          confidenceScores: confidenceScores
         };
         
         console.log("Analysis parsed successfully");
@@ -181,7 +360,9 @@ IMPORTANT: When extracting the original content, copy and paste EXACTLY from the
               danger_alerts: analysis.dangerAlerts,
               improved_sections: analysis.improvedSections,
               keyword_analysis: analysis.keywordAnalysis,
-              raw_analysis: analysisText
+              raw_analysis: analysisText,
+              structured_data: structuredData,
+              confidence_scores: confidenceScores
             })
             .select('id')
             .single();

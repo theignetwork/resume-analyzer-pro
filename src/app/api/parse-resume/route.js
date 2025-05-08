@@ -1,11 +1,28 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-// Affinda API key from environment variable
-const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY || "aff_f7ade2a0ea61ae806f457d32031bef36d469892a";
+// Affinda API key and workspace ID from environment variables
+const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
+const AFFINDA_WORKSPACE_ID = process.env.AFFINDA_WORKSPACE_ID;
 
 export async function POST(request) {
   try {
+    // Check if API key is configured
+    if (!AFFINDA_API_KEY) {
+      console.error("Affinda API key not configured");
+      return NextResponse.json({ 
+        error: 'Server configuration error: API key not set' 
+      }, { status: 500 });
+    }
+    
+    // Check if workspace ID is configured
+    if (!AFFINDA_WORKSPACE_ID) {
+      console.error("Affinda workspace ID not configured");
+      return NextResponse.json({ 
+        error: 'Server configuration error: workspace ID not set' 
+      }, { status: 500 });
+    }
+    
     const { resumeId } = await request.json();
     
     if (!resumeId) {
@@ -33,19 +50,20 @@ export async function POST(request) {
     }
     
     try {
-      // Using the most basic v2 approach which has simpler requirements
-      console.log("Preparing simplified request to Affinda v2 API...");
+      console.log("Preparing request to Affinda v3 API with workspace ID:", AFFINDA_WORKSPACE_ID);
       
-      // Keep the request as simple as possible with just the essential fields
+      // API v3 request with minimal required parameters
       const requestBody = {
         url: resume.file_url,
-        wait: true
+        wait: true,
+        identifier: `resume-${resumeId}`,
+        workspace: AFFINDA_WORKSPACE_ID // Use the workspace ID from env var
       };
       
-      console.log("Calling Affinda API with request:", JSON.stringify(requestBody));
+      console.log("Calling Affinda API v3...");
       
-      // Use the v2 resumes endpoint which has simpler parameter requirements
-      const affindaResponse = await fetch('https://api.affinda.com/v2/resumes', {
+      // Use the v3 documents endpoint with the resume extractor
+      const affindaResponse = await fetch('https://api.affinda.com/v3/documents?extractor=resume', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -60,11 +78,17 @@ export async function POST(request) {
       
       // Get the raw response for better debugging
       const responseText = await affindaResponse.text();
-      console.log("Response text (first 200 chars):", responseText.substring(0, 200));
+      console.log("Response received, length:", responseText.length);
       
       if (!affindaResponse.ok) {
-        console.error("Affinda API error response:", responseText);
-        throw new Error(`Affinda API error: ${affindaResponse.statusText} - ${responseText}`);
+        console.error("Affinda API error response status:", affindaResponse.status);
+        try {
+          // Try to parse error message for better reporting
+          const errorData = JSON.parse(responseText);
+          throw new Error(`Affinda API error: ${errorData.message || errorData.detail || affindaResponse.statusText}`);
+        } catch (e) {
+          throw new Error(`Affinda API error: ${affindaResponse.statusText}`);
+        }
       }
       
       // Parse the response as JSON
@@ -72,31 +96,30 @@ export async function POST(request) {
       console.log("Resume parsing complete, response ID:", parsedData.identifier || parsedData.id);
       
       // Extract the structured data and text (handling different possible response formats)
+      // Note: v3 API has a different response structure
       let resumeText = '';
       
-      if (parsedData.data && parsedData.data.content) {
-        resumeText = parsedData.data.content;
-      } else if (parsedData.content) {
-        resumeText = parsedData.content;
-      } else if (parsedData.data && parsedData.data.rawText) {
+      // v3 API typically has the resume text in one of these locations
+      if (parsedData.data && parsedData.data.rawText) {
         resumeText = parsedData.data.rawText;
+      } else if (parsedData.data && parsedData.data.data && parsedData.data.data.rawText) {
+        resumeText = parsedData.data.data.rawText;
       } else if (parsedData.rawText) {
         resumeText = parsedData.rawText;
       } else {
         console.log("Searching deeper in response structure for text...");
         // Try to find text in a nested structure if it exists
         const jsonStr = JSON.stringify(parsedData);
-        const textMatch = jsonStr.match(/"(rawText|content)":"([^"]+)"/);
-        if (textMatch && textMatch[2]) {
-          resumeText = textMatch[2];
+        const textMatch = jsonStr.match(/"rawText":"([^"]+)"/);
+        if (textMatch && textMatch[1]) {
+          resumeText = textMatch[1];
         }
       }
       
       if (!resumeText || resumeText.trim().length === 0) {
         console.error("No text could be extracted from the resume");
         return NextResponse.json({ 
-          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.',
-          data: parsedData
+          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.'
         }, { status: 400 });
       }
       
@@ -107,7 +130,8 @@ export async function POST(request) {
         .from('resumes')
         .update({ 
           resume_structured_data: parsedData,
-          resume_text: resumeText
+          resume_text: resumeText,
+          parser_version: 'v3-nextgen' // Add this to track which parser version was used
         })
         .eq('id', resumeId);
         
@@ -120,7 +144,7 @@ export async function POST(request) {
       
       return NextResponse.json({
         success: true,
-        structuredData: parsedData
+        message: "Resume parsed successfully with NextGen parser"
       });
       
     } catch (parseError) {
