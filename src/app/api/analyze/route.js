@@ -1,4 +1,10 @@
-import { NextResponse } from 'next/server';
+antml:invoke name="artifacts"
+antml:parameter name="command">create</parameter>
+antml:parameter name="id">analyze-route</parameter>
+antml:parameter name="type">application/vnd.ant.code</parameter>
+antml:parameter name="language">javascript</parameter>
+antml:parameter name="title">Fixed Analyze API Route</parameter>
+antml:parameter name="content">import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
@@ -238,78 +244,204 @@ Provide specific recommendations for the ${resume.job_title} role in terms of:
 
 In your analysis, be specific, actionable, and practical. Explain the "why" behind each recommendation so I understand its importance. Focus on the most impactful changes I can make to improve my chances of getting interviews.`;
 
-    const claudeResponse = await anthropic.messages.create({
-      model: "claude-3-opus-20240229",
-      max_tokens: 4000,
-      messages: [{
-        role: "user",
-        content: [{
-          type: "text",
-          text: claudePrompt
+    // Add more robust Claude API call with error handling
+    let claudeResponse;
+    try {
+      claudeResponse = await anthropic.messages.create({
+        model: "claude-3-opus-20240229",
+        max_tokens: 4000,
+        messages: [{
+          role: "user",
+          content: [{
+            type: "text",
+            text: claudePrompt
+          }]
         }]
-      }]
-    });
-
-    const analysisText = claudeResponse?.content?.[0]?.text || '';
-    if (!analysisText.length) {
-      console.error("❌ Claude returned empty");
-      return NextResponse.json({ error: 'Claude returned no text' }, { status: 502 });
+      });
+      
+      console.log("Claude API called successfully");
+    } catch (claudeError) {
+      console.error("❌ Claude API error:", claudeError);
+      return NextResponse.json({ 
+        error: 'Claude API error: ' + (claudeError.message || 'Unknown error') 
+      }, { status: 500 });
     }
 
-    // Extract specific pieces from the analysis
-    const overallScore = extractScore(analysisText, "overall score|overall assessment") || 75;
-    const atsScore = extractScore(analysisText, "ATS compatibility score|ATS score") || 70;
-    const formattingScore = extractScore(analysisText, "formatting score") || 75;
-    const contentScore = extractScore(analysisText, "content quality score|content score") || 75;
-    const relevanceScore = extractScore(analysisText, "relevance score") || 70;
+    // Validate Claude response
+    if (!claudeResponse || !claudeResponse.content || claudeResponse.content.length === 0) {
+      console.error("❌ Invalid Claude response structure:", JSON.stringify(claudeResponse).substring(0, 100));
+      return NextResponse.json({ error: 'Invalid Claude response structure' }, { status: 502 });
+    }
+
+    const analysisText = claudeResponse.content[0]?.text || '';
+    console.log("Analysis text length:", analysisText.length);
     
-    const strengths = extractListItems(analysisText, "KEY STRENGTHS|STRENGTHS", "AREAS FOR IMPROVEMENT|IMPROVEMENT");
-    const improvements = extractListItems(analysisText, "AREAS FOR IMPROVEMENT|IMPROVEMENT", "CRITICAL ATS ISSUES|ATS ISSUES");
-    const dangerAlerts = extractListItems(analysisText, "CRITICAL ATS ISSUES|ATS ISSUES", "KEYWORD ANALYSIS|KEYWORDS");
-    const keywordAnalysis = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
-    
-    const improvedSections = {
-      summary: extractSection(analysisText, "summary"),
-      experience: extractSection(analysisText, "experience"),
-      skills: extractSection(analysisText, "skills"),
-      education: extractSection(analysisText, "education")
+    if (!analysisText || analysisText.length === 0) {
+      console.error("❌ Claude returned empty text");
+      return NextResponse.json({ error: 'Claude returned empty text' }, { status: 502 });
+    }
+
+    // Extract data with error handling
+    let overallScore = 75;
+    let atsScore = 70;
+    let formattingScore = 75;
+    let contentScore = 75;
+    let relevanceScore = 70;
+    let strengths = [];
+    let improvements = [];
+    let dangerAlerts = [];
+    let keywordAnalysis = [];
+    let improvedSections = {
+      summary: { original: '', improved: '' },
+      experience: { original: '', improved: '' },
+      skills: { original: '', improved: '' },
+      education: { original: '', improved: '' }
     };
 
-    const { data: result, error: insertError } = await supabase.from('analyses').insert({
-      resume_id: resumeId,
-      raw_analysis: analysisText,
-      structured_data: structuredData,
-      confidence_scores: confidenceScores,
-      overall_score: overallScore,
-      ats_score: atsScore,
-      formatting_score: formattingScore,
-      content_score: contentScore,
-      relevance_score: relevanceScore,
-      strengths: strengths,
-      improvements: improvements,
-      danger_alerts: dangerAlerts,
-      keyword_analysis: keywordAnalysis,
-      improved_sections: improvedSections
-    }).select('id').single();
-
-    if (insertError) {
-      console.error("❌ Failed to save analysis:", insertError.message);
-      return NextResponse.json({ error: 'Failed to save analysis' }, { status: 500 });
+    try {
+      // Try to extract scores
+      const extractedOverallScore = extractScore(analysisText, "overall score|overall assessment");
+      if (extractedOverallScore !== null) overallScore = extractedOverallScore;
+      
+      const extractedAtsScore = extractScore(analysisText, "ATS compatibility score|ATS score");
+      if (extractedAtsScore !== null) atsScore = extractedAtsScore;
+      
+      const extractedFormattingScore = extractScore(analysisText, "formatting score");
+      if (extractedFormattingScore !== null) formattingScore = extractedFormattingScore;
+      
+      const extractedContentScore = extractScore(analysisText, "content quality score|content score");
+      if (extractedContentScore !== null) contentScore = extractedContentScore;
+      
+      const extractedRelevanceScore = extractScore(analysisText, "relevance score");
+      if (extractedRelevanceScore !== null) relevanceScore = extractedRelevanceScore;
+      
+      // Extract lists
+      const extractedStrengths = extractListItems(analysisText, "KEY STRENGTHS|STRENGTHS", "AREAS FOR IMPROVEMENT|IMPROVEMENT");
+      if (extractedStrengths && extractedStrengths.length > 0) strengths = extractedStrengths;
+      
+      const extractedImprovements = extractListItems(analysisText, "AREAS FOR IMPROVEMENT|IMPROVEMENT", "CRITICAL ATS ISSUES|ATS ISSUES");
+      if (extractedImprovements && extractedImprovements.length > 0) improvements = extractedImprovements;
+      
+      const extractedDangerAlerts = extractListItems(analysisText, "CRITICAL ATS ISSUES|ATS ISSUES", "KEYWORD ANALYSIS|KEYWORDS");
+      if (extractedDangerAlerts && extractedDangerAlerts.length > 0) dangerAlerts = extractedDangerAlerts;
+      
+      const extractedKeywordAnalysis = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
+      if (extractedKeywordAnalysis && extractedKeywordAnalysis.length > 0) keywordAnalysis = extractedKeywordAnalysis;
+      
+      // Extract sections
+      const extractedSummary = extractSection(analysisText, "summary");
+      if (extractedSummary && (extractedSummary.original || extractedSummary.improved)) {
+        improvedSections.summary = extractedSummary;
+      }
+      
+      const extractedExperience = extractSection(analysisText, "experience");
+      if (extractedExperience && (extractedExperience.original || extractedExperience.improved)) {
+        improvedSections.experience = extractedExperience;
+      }
+      
+      const extractedSkills = extractSection(analysisText, "skills");
+      if (extractedSkills && (extractedSkills.original || extractedSkills.improved)) {
+        improvedSections.skills = extractedSkills;
+      }
+      
+      const extractedEducation = extractSection(analysisText, "education");
+      if (extractedEducation && (extractedEducation.original || extractedEducation.improved)) {
+        improvedSections.education = extractedEducation;
+      }
+      
+      console.log("Data extraction completed successfully");
+    } catch (extractionError) {
+      console.error("❌ Extraction error:", extractionError);
+      // Continue with default data
     }
 
-    return NextResponse.json({ success: true, analysisId: result.id });
+    // Insert analysis into database with robust error handling
+    try {
+      console.log("Saving analysis to database...");
+      const insertData = {
+        resume_id: resumeId,
+        raw_analysis: analysisText,
+        overall_score: overallScore,
+        ats_score: atsScore,
+        formatting_score: formattingScore,
+        content_score: contentScore,
+        relevance_score: relevanceScore,
+        strengths: strengths,
+        improvements: improvements,
+        danger_alerts: dangerAlerts,
+        keyword_analysis: keywordAnalysis,
+        improved_sections: improvedSections,
+        // Always include these even if empty
+        structured_data: structuredData || {},
+        confidence_scores: confidenceScores || {}
+      };
+      
+      console.log("Insert data prepared:", JSON.stringify({
+        resumeId,
+        dataLength: analysisText.length,
+        scores: {
+          overall: overallScore,
+          ats: atsScore,
+          formatting: formattingScore,
+          content: contentScore,
+          relevance: relevanceScore
+        },
+        listCounts: {
+          strengths: strengths.length,
+          improvements: improvements.length,
+          dangerAlerts: dangerAlerts.length,
+          keywordAnalysis: keywordAnalysis.length
+        },
+        sectionsAvailable: {
+          summary: !!improvedSections.summary.improved,
+          experience: !!improvedSections.experience.improved,
+          skills: !!improvedSections.skills.improved,
+          education: !!improvedSections.education.improved
+        }
+      }));
+
+      const { data: result, error: insertError } = await supabase
+        .from('analyses')
+        .insert(insertData)
+        .select('id')
+        .single();
+
+      if (insertError) {
+        console.error("❌ Database insert error:", insertError);
+        return NextResponse.json({ error: 'Database error: ' + insertError.message }, { status: 500 });
+      }
+      
+      console.log("✅ Analysis saved successfully with ID:", result.id);
+      
+      return NextResponse.json({ 
+        success: true, 
+        analysisId: result.id,
+        message: 'Analysis completed successfully'
+      });
+      
+    } catch (dbError) {
+      console.error("❌ Database operation error:", dbError);
+      return NextResponse.json({ error: 'Database error: ' + dbError.message }, { status: 500 });
+    }
 
   } catch (err) {
     console.error("❌ API route error:", err);
-    return NextResponse.json({ error: 'Internal error: ' + err.message }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'API error: ' + (err.message || 'Unknown error') 
+    }, { status: 500 });
   }
 }
 
-// Helper functions to extract information from Claude's response
+// Helper functions with improved error handling
 function extractScore(text, sectionPattern) {
-  const regex = new RegExp(`(${sectionPattern})\\s*:\\s*([0-9.]+)`, 'i');
-  const match = text.match(regex);
-  return match ? parseFloat(match[2]) : null;
+  try {
+    const regex = new RegExp(`(${sectionPattern})\\s*:\\s*([0-9.]+)`, 'i');
+    const match = text.match(regex);
+    return match ? parseFloat(match[2]) : null;
+  } catch (error) {
+    console.error(`Error extracting score for ${sectionPattern}:`, error);
+    return null;
+  }
 }
 
 function extractListItems(text, startSectionPattern, endSectionPattern) {
@@ -372,12 +504,9 @@ function extractListItems(text, startSectionPattern, endSectionPattern) {
 
 function extractSection(text, sectionName) {
   try {
-    // Log what we're looking for
-    console.log(`Extracting ${sectionName} section`);
-    
     // Define the patterns with more precision
-    const originalPattern = new RegExp(`Original\\s+(${sectionName}):\\s*([\\s\\S]*?)(?=Improved\\s+|Original\\s+|\\d+\\.\\s+|$)`, 'i');
-    const improvedPattern = new RegExp(`Improved\\s+(${sectionName}):\\s*([\\s\\S]*?)(?=Original\\s+|Improved\\s+|\\d+\\.\\s+|$)`, 'i');
+    const originalPattern = new RegExp(`Original\\s+(${sectionName})\\s*:([\\s\\S]*?)(?=Improved\\s+|Original\\s+|\\d+\\.\\s+|$)`, 'i');
+    const improvedPattern = new RegExp(`Improved\\s+(${sectionName})\\s*:([\\s\\S]*?)(?=Original\\s+|Improved\\s+|\\d+\\.\\s+|$)`, 'i');
     
     // Extract the content
     const originalMatch = text.match(originalPattern);
@@ -394,5 +523,6 @@ function extractSection(text, sectionName) {
     console.error(`Error extracting ${sectionName} section:`, error);
     return { original: '', improved: '' };
   }
-}
+}</parameter>
+</invoke>
 
