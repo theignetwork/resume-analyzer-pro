@@ -23,9 +23,8 @@ export async function POST(request) {
       url: resume.file_url,
       wait: true,
       workspace: AFFINDA_WORKSPACE_ID,
-      documentType: "oprLIBoq", // ✅ This is the key line
-      identifier: `resume-${resumeId}`,
-      
+      documentType: "oprLIBoq",
+      identifier: `resume-${resumeId}`
     };
 
     const affindaResponse = await fetch('https://api.affinda.com/v3/documents', {
@@ -126,4 +125,3 @@ function deepSearchForText(obj, depth = 0, maxDepth = 5) {
   }
   return '';
 }
-
