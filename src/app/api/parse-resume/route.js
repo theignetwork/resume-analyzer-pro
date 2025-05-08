@@ -50,21 +50,21 @@ export async function POST(request) {
     }
     
     try {
-      console.log("Preparing request to Affinda v3 API...");
+      console.log("Preparing request to Affinda v3 API with workspace ID:", AFFINDA_WORKSPACE_ID);
       
-      // IMPORTANT: In v3, we'll try a different approach by using the resumeParser endpoint
-      // rather than the generic documents endpoint with an extractor parameter
+      // Based on the documentation, the correct parameters for v3 API
       const requestBody = {
         url: resume.file_url,
         wait: true,
-        workspaceId: AFFINDA_WORKSPACE_ID, // Note: different parameter name for this endpoint!
-        expiry: "2030-01-01" // Set a far future expiry date
+        workspace: AFFINDA_WORKSPACE_ID,
+        documentType: "resume", // Explicitly setting document type to resume
+        customIdentifier: `resume-${resumeId}`
       };
       
-      console.log("Calling Affinda Resume Parser API v3...");
+      console.log("Calling Affinda API v3...");
       
-      // CRITICAL CHANGE: Use the dedicated resume parser endpoint
-      const affindaResponse = await fetch('https://api.affinda.com/v3/resumes', {
+      // Use the v3 documents endpoint without extractor parameter in URL
+      const affindaResponse = await fetch('https://api.affinda.com/v3/documents', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -83,7 +83,6 @@ export async function POST(request) {
       
       if (!affindaResponse.ok) {
         console.error("Affinda API error response status:", affindaResponse.status);
-        
         try {
           // Try to parse error message for better reporting
           const errorData = JSON.parse(responseText);
@@ -103,55 +102,69 @@ export async function POST(request) {
         throw new Error("Failed to parse API response as JSON");
       }
       
-      // Extract the text based on v3 resume parser response structure
+      // Extract text based on v3 response structure
       let resumeText = '';
       
-      if (parsedData.data && typeof parsedData.data.raw === 'string') {
-        // v3 resume parser specific path
-        resumeText = parsedData.data.raw;
-        console.log("Found text in parsedData.data.raw");
-      } else if (parsedData.data && parsedData.data.rawText) {
-        resumeText = parsedData.data.rawText;
-        console.log("Found text in parsedData.data.rawText");
-      } else if (parsedData.rawText) {
-        resumeText = parsedData.rawText;
-        console.log("Found text in parsedData.rawText");
-      } else if (parsedData.data && parsedData.data.data && parsedData.data.data.rawText) {
-        resumeText = parsedData.data.data.rawText;
-        console.log("Found text in parsedData.data.data.rawText");
+      // The documentation suggests data is the main response field
+      if (parsedData.data) {
+        console.log("Data field found, keys:", Object.keys(parsedData.data));
+        
+        // Specific places where text might be found in the response
+        if (parsedData.data.content) {
+          resumeText = parsedData.data.content;
+          console.log("Found text in data.content");
+        } else if (parsedData.data.rawText) {
+          resumeText = parsedData.data.rawText;
+          console.log("Found text in data.rawText");
+        } else if (parsedData.data.text) {
+          resumeText = parsedData.data.text;
+          console.log("Found text in data.text");
+        } else if (parsedData.data.textContent) {
+          resumeText = parsedData.data.textContent;
+          console.log("Found text in data.textContent");
+        }
+        
+        // Resume data might be in a more structured format in data.data
+        if (!resumeText && parsedData.data.data) {
+          console.log("Looking in data.data, keys:", Object.keys(parsedData.data.data));
+          
+          if (parsedData.data.data.rawText) {
+            resumeText = parsedData.data.data.rawText;
+            console.log("Found text in data.data.rawText");
+          } else if (parsedData.data.data.content) {
+            resumeText = parsedData.data.data.content;
+            console.log("Found text in data.data.content");
+          }
+        }
       }
       
-      // Additional fallback methods if needed
-      if (!resumeText && parsedData.data && parsedData.data.textAnnotation) {
-        resumeText = parsedData.data.textAnnotation;
-        console.log("Found text in textAnnotation");
+      // Check if the text is in the top level of the response
+      if (!resumeText) {
+        if (parsedData.rawText) {
+          resumeText = parsedData.rawText;
+          console.log("Found text in rawText");
+        } else if (parsedData.content) {
+          resumeText = parsedData.content;
+          console.log("Found text in content");
+        }
+      }
+      
+      // As a last resort, try to extract text from the PDF
+      if (!resumeText && parsedData.pdf) {
+        console.log("No text found in structured data, but PDF URL is available:", parsedData.pdf);
+        resumeText = "PDF content available but text extraction failed";
       }
       
       if (!resumeText || resumeText.trim().length === 0) {
         console.error("No text could be extracted from the resume");
-        
-        // Check if we have extracted sections even without raw text
-        let sections = [];
-        if (parsedData.data && Array.isArray(parsedData.data.sections)) {
-          sections = parsedData.data.sections;
-        } else if (parsedData.data && parsedData.data.data && Array.isArray(parsedData.data.data.sections)) {
-          sections = parsedData.data.data.sections;
-        }
-        
-        if (sections.length > 0) {
-          // Try to reconstruct text from sections
-          console.log("Attempting to reconstruct text from sections");
-          resumeText = sections.map(section => section.text || '').join('\n\n');
-        }
-        
-        if (!resumeText || resumeText.trim().length === 0) {
-          return NextResponse.json({ 
-            error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.'
-          }, { status: 400 });
-        }
+        return NextResponse.json({ 
+          error: 'No text could be extracted from the resume. Please ensure the PDF contains selectable text.',
+          parsed_data: parsedData // Include the parsed data for debugging
+        }, { status: 400 });
       }
       
       console.log("Extracted resume text length:", resumeText.length);
+      console.log("First 100 chars of text:", resumeText.substring(0, 100));
       
       // Update the resume record with the parsed data
       const { error: updateError } = await supabase
@@ -159,7 +172,7 @@ export async function POST(request) {
         .update({ 
           resume_structured_data: parsedData,
           resume_text: resumeText,
-          parser_version: 'v3-nextgen'
+          parser_version: 'v3-documentType' // Track that we're using documentType approach
         })
         .eq('id', resumeId);
         
