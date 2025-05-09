@@ -425,7 +425,7 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Formatting Issues */}
+        {/* Formatting Issues - MODIFIED SECTION */}
         <div className="lg:col-span-3">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
@@ -437,48 +437,36 @@ const ATSOptimizationReport = () => {
                 may prevent your resume from being correctly processed.
               </p>
               
-              {/* Danger Zone */}
-              <div className="p-4 bg-red-900/30 rounded-lg border border-red-900/50 mb-6">
-                <h3 className="text-xl font-semibold text-yellow-400 flex items-center mb-4">
-                  <AlertCircle className="h-5 w-5 mr-2" />
-                  Critical ATS Issues
-                </h3>
-                <ul className="space-y-3">
-                  {analysis?.danger_alerts?.filter(item => item && item.trim()).length > 0 ? (
-                    analysis.danger_alerts
-                      .filter(item => item && item.trim())
-                      .map((alert, index) => (
-                        <li key={index} className="flex items-start">
-                          <XCircle className="text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                          <span>{alert}</span>
-                        </li>
-                      ))
-                  ) : (
-                    <li className="flex items-start">
-                      <AlertCircle className="text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>No critical issues found. However, there's always room for improvement.</span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-              
-              {/* Formatting Recommendations */}
+              {/* Formatting Recommendations - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* MODIFIED: Changed to "Critical Issues" instead of "Detected Formatting Issues" */}
                 <div className="p-4 border border-gray-700 rounded-lg">
-                  <h4 className="font-semibold text-white mb-3">Detected Formatting Issues</h4>
+                  <h4 className="font-semibold text-white mb-3">Critical Issues</h4>
                   <ul className="space-y-2">
-                    {problematicFormatting.length > 0 ? (
-                      problematicFormatting.map((issue, index) => (
-                        <li key={index} className="flex items-start">
-                          <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
-                          <span className="text-muted-foreground">{issue}</span>
-                        </li>
-                      ))
+                    {analysis?.danger_alerts?.filter(item => item && item.trim()).length > 0 ? (
+                      analysis.danger_alerts
+                        .filter(item => item && item.trim())
+                        .map((alert, index) => (
+                          <li key={index} className="flex items-start">
+                            <XCircle className="text-red-400 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                            <span className="text-muted-foreground">{alert}</span>
+                          </li>
+                        ))
                     ) : (
-                      <li className="flex items-start">
-                        <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
-                        <span className="text-muted-foreground">No significant formatting issues detected</span>
-                      </li>
+                      /* If no specific issues detected, show detected formatting issues instead */
+                      problematicFormatting.length > 0 ? (
+                        problematicFormatting.map((issue, index) => (
+                          <li key={index} className="flex items-start">
+                            <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                            <span className="text-muted-foreground">{issue}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="flex items-start">
+                          <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                          <span className="text-muted-foreground">No significant formatting issues detected</span>
+                        </li>
+                      )
                     )}
                   </ul>
                 </div>
