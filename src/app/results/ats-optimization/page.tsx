@@ -290,8 +290,7 @@ const ATSOptimizationReport = () => {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground mb-4">
-                Here's how an ATS would read and categorize your resume. Sections with lower confidence 
-                scores may be misclassified or ignored by the system.
+                This analysis shows how Applicant Tracking Systems will process your resume. ATS software looks for standard sections, keywords, and proper formatting to determine which resumes reach hiring managers.
               </p>
               
               <div className="space-y-4">
@@ -318,7 +317,7 @@ const ATSOptimizationReport = () => {
                     <AlertCircle className="w-4 h-4 mr-1" />
                     Missing Expected Sections
                   </h4>
-                  <ul className="ml-6 text-sm list-disc text-muted-foreground">
+                  <ul className="ml-6 text-sm list-disc text-muted-foreground text-left">
                     {missingExpectedSections.map((section, index) => (
                       <li key={index}>{section}</li>
                     ))}
