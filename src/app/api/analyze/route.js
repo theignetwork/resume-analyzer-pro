@@ -173,7 +173,12 @@ ${JSON.stringify({
   confidenceScores: confidenceScores 
 }, null, 2)}
 
-IMPORTANT: You must directly compare the ATS STRUCTURED DATA above against the JOB DESCRIPTION to assess:
+IMPORTANT FORMATTING INSTRUCTIONS:
+- Use <strong>bold text</strong> for emphasis instead of ** markdown formatting
+- Always use HTML-style formatting for any text emphasis
+- Be sure to complete ALL sections in your response
+
+You must directly compare the ATS STRUCTURED DATA above against the JOB DESCRIPTION to assess:
 1. How well the ATS is parsing my resume
 2. How closely my resume matches the job requirements
 3. The quality of the ATS data (confidence scores, extracted skills, etc.)
@@ -247,6 +252,8 @@ Provide specific recommendations for the ${resume.job_title} role in terms of:
 - Expected qualifications
 - Current trends in this field
 - How my resume compares to industry standards
+
+IMPORTANT: You must complete all 8 sections above - especially the INDUSTRY-SPECIFIC RECOMMENDATIONS section at the end. Make sure to fully address dangerous ATS issues in the CRITICAL ATS ISSUES section.
 
 In your analysis, be specific, actionable, and practical. Explain the "why" behind each recommendation so I understand its importance. Focus on the most impactful changes I can make to improve my chances of getting interviews.`;
 
