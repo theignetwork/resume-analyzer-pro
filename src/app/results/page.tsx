@@ -134,12 +134,16 @@ export default function ResultsPage() {
               <h3 className="text-xl font-semibold text-primary mb-4">Key Strengths</h3>
               <ul className="space-y-2">
                 {analysis?.strengths?.filter(item => item && item.trim() && !item.match(/^\d+$/))
-                  .map((strength, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-primary mr-2">✓</span>
-                      <span>{strength}</span>
-                    </li>
-                ))}
+                  .map((strength, index) => {
+                    // Remove any ** markers from the strength text
+                    const cleanStrength = strength.replace(/\*\*/g, '');
+                    return (
+                      <li key={index} className="flex items-start">
+                        <span className="text-primary mr-2">✓</span>
+                        <span>{cleanStrength}</span>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
             
@@ -147,12 +151,16 @@ export default function ResultsPage() {
               <h3 className="text-xl font-semibold text-white mb-4">Areas for Improvement</h3>
               <ul className="space-y-2">
                 {analysis?.improvements?.filter(item => item && item.trim() && !item.match(/^\d+$/))
-                  .map((improvement, index) => (
-                    <li key={index} className="flex items-start">
-                      <span className="text-gray-400 mr-2">-</span>
-                      <span>{improvement}</span>
-                    </li>
-                ))}
+                  .map((improvement, index) => {
+                    // Remove any ** markers from the improvement text
+                    const cleanImprovement = improvement.replace(/\*\*/g, '');
+                    return (
+                      <li key={index} className="flex items-start">
+                        <span className="text-gray-400 mr-2">-</span>
+                        <span>{cleanImprovement}</span>
+                      </li>
+                    );
+                  })}
               </ul>
             </div>
           </div>
@@ -180,26 +188,31 @@ export default function ResultsPage() {
             </div>
           )}
           
-          {/* Danger Zone */}
-          {analysis?.danger_alerts?.filter(item => item && item.trim() && !item.match(/^\d+$/)).length > 0 && (
-            <div className="mt-12 p-4 bg-red-900/30 rounded-lg text-left">
-              <h3 className="text-xl font-semibold text-yellow-400 flex items-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                Danger Zone Alerts
-              </h3>
+          {/* Danger Zone - Always display this section */}
+          <div className="mt-12 p-4 bg-red-900/30 rounded-lg text-left">
+            <h3 className="text-xl font-semibold text-yellow-400 flex items-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              Danger Zone Alerts
+            </h3>
+            {analysis?.danger_alerts?.filter(item => item && item.trim() && !item.match(/^\d+$/)).length > 0 ? (
               <ul className="space-y-2">
-                {analysis?.danger_alerts?.filter(item => item && item.trim() && !item.match(/^\d+$/))
+                {analysis.danger_alerts
+                  .filter(item => item && item.trim() && !item.match(/^\d+$/))
                   .map((alert, index) => (
                     <li key={index} className="flex items-start">
                       <span className="text-red-400 mr-2">✖</span>
                       <span>{alert}</span>
                     </li>
-                ))}
+                  ))}
               </ul>
-            </div>
-          )}
+            ) : (
+              <p className="text-muted-foreground">
+                No critical issues found. Your resume has good overall formatting and structure.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>
