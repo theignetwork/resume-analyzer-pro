@@ -4,17 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   CheckCircle, AlertCircle, XCircle, FileText, User, Briefcase, 
   GraduationCap, Tag, Copy, Clock, Award, BookOpen 
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import ResultsNavTabs from '../ResultsNavTabs';
 
 const ATSOptimizationReport = () => {
-  // State for active tab and analysis data
-  const [activeTab, setActiveTab] = useState("ats-optimization");
+  // State for analysis data
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -220,16 +219,8 @@ const ATSOptimizationReport = () => {
     <div className="w-full max-w-6xl mx-auto space-y-8">
       <h1 className="text-4xl font-bold text-white text-center mb-2">RESUME ANALYZER PRO</h1>
       
-      {/* Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="overview" onClick={() => router.push('/results')}>Overview</TabsTrigger>
-          <TabsTrigger value="ats-optimization" className="bg-primary text-primary-foreground">ATS Optimization</TabsTrigger>
-          <TabsTrigger value="improved-content" onClick={() => router.push('/results/improved')}>Improved Content</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="report">Report</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Replaced Tabs with ResultsNavTabs */}
+      <ResultsNavTabs />
       
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -370,7 +361,7 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Keyword Gap Analysis */}
+        {/* Keyword Gap Analysis - FIXED WITH LENGTH AND ASTERISK FILTERING */}
         <div className="lg:col-span-2">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
@@ -385,13 +376,13 @@ const ATSOptimizationReport = () => {
               <div className="flex flex-wrap gap-2 mb-6">
                 {analysis?.keyword_analysis?.filter(item => item && item.trim()).length > 0 ? (
                   analysis.keyword_analysis
-                    .filter(item => item && item.trim())
+                    .filter(item => item && item.trim() && item.length < 60)
                     .map((keyword, index) => (
                       <Badge 
                         key={index} 
                         className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/20 px-3 py-1"
                       >
-                        {keyword}
+                        {keyword.replace(/\*\*/g, '')}
                       </Badge>
                     ))
                 ) : (
