@@ -127,4 +127,8 @@ const ExampleUsage: React.FC = () => {
   );
 };
 
-export default ExampleUsage;
+// Export the actual card component as the default export
+export default ResumeSummaryCard;
+
+// Optionally keep the example as a named export
+export { ExampleUsage };
