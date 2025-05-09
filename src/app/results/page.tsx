@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import ResultsNavTabs from './ResultsNavTabs';
 import ResumeSummaryCard from '@/components/ui/ResumeSummaryCard';
 import SaveAnalysisButton from '@/components/ui/SaveAnalysisButton';
+import KeywordDisplay from '@/components/ui/KeywordDisplay'; // Add this import for the KeywordDisplay component
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -166,28 +167,14 @@ export default function ResultsPage() {
             </div>
           </div>
           
-          {/* Keyword Analysis - Fixed to show actual keywords, not full text */}
+          {/* Keyword Analysis - UPDATED to use the new KeywordDisplay component */}
           {analysis?.keyword_analysis && analysis.keyword_analysis.length > 0 && (
-            <div className="mt-12 text-left">
-              <h3 className="text-xl font-semibold text-white mb-4">Missing Keywords</h3>
-              <div className="p-4 bg-card/50 rounded-lg">
-                <p className="text-muted-foreground mb-3">
-                  Adding these keywords from the job description will improve your ATS score:
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {/* Only use proper keywords, not full strength descriptions */}
-                  {analysis.keyword_analysis
-                    .filter(item => item && item.trim() && !item.match(/^\d+$/))
-                    .map((keyword, index) => (
-                    <span 
-                      key={index} 
-                      className="px-2 py-1 bg-primary/20 text-primary rounded-md text-sm"
-                    >
-                      {keyword.replace(/\*\*/g, '')}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            <div className="mt-12">
+              <KeywordDisplay 
+                keywords={analysis.keyword_analysis}
+                title="Missing Keywords"
+                description="Adding these keywords from the job description will improve your ATS score:"
+              />
             </div>
           )}
           
