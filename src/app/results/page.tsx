@@ -151,6 +151,7 @@ export default function ResultsPage() {
               <h3 className="text-xl font-semibold text-white mb-4">Areas for Improvement</h3>
               <ul className="space-y-2">
                 {analysis?.improvements?.filter(item => item && item.trim() && !item.match(/^\d+$/))
+                  .slice(0, 6) // Limit to first 6 improvement items
                   .map((improvement, index) => {
                     // Remove any ** markers from the improvement text
                     const cleanImprovement = improvement.replace(/\*\*/g, '');
@@ -165,7 +166,7 @@ export default function ResultsPage() {
             </div>
           </div>
           
-          {/* Keyword Analysis */}
+          {/* Keyword Analysis - Fixed to show actual keywords, not full text */}
           {analysis?.keyword_analysis && analysis.keyword_analysis.length > 0 && (
             <div className="mt-12 text-left">
               <h3 className="text-xl font-semibold text-white mb-4">Missing Keywords</h3>
@@ -174,13 +175,15 @@ export default function ResultsPage() {
                   Adding these keywords from the job description will improve your ATS score:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {analysis.keyword_analysis.filter(item => item && item.trim() && !item.match(/^\d+$/))
+                  {/* Only use proper keywords, not full strength descriptions */}
+                  {analysis.keyword_analysis
+                    .filter(item => item && item.trim() && !item.match(/^\d+$/) && item.length < 60)
                     .map((keyword, index) => (
                     <span 
                       key={index} 
                       className="px-2 py-1 bg-primary/20 text-primary rounded-md text-sm"
                     >
-                      {keyword}
+                      {keyword.replace(/\*\*/g, '')}
                     </span>
                   ))}
                 </div>
