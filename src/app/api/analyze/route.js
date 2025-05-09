@@ -209,7 +209,16 @@ Identify 3-5 specific weaknesses or areas where my resume could be improved. Pri
 List any formatting, structural, or content issues that could cause ATS systems to reject my resume. Focus on the most critical problems that need immediate attention.
 
 ## 5. KEYWORD ANALYSIS
-Identify important keywords from the job description that are missing from my resume. Prioritize by importance and relevance.
+List important keywords from the job description that are missing from my resume.
+Format them as a bullet list with ONE keyword or phrase per line.
+IMPORTANT: Keep each keyword or phrase SHORT (1-5 words maximum).
+DO NOT include explanations or full sentences, just the specific missing keywords.
+Example format:
+- project management
+- Python
+- data analysis
+- UX/UI design
+- cloud infrastructure
 
 ## 6. IMPROVED CONTENT BY SECTION
 For each section below, copy the exact text from my resume then provide an improved version that addresses the issues you've identified. Optimize for both ATS compatibility and human readability.
@@ -349,8 +358,17 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
       const extractedDangerAlerts = extractListItems(analysisText, "CRITICAL ATS ISSUES|ATS ISSUES", "KEYWORD ANALYSIS|KEYWORDS");
       if (extractedDangerAlerts && extractedDangerAlerts.length > 0) dangerAlerts = extractedDangerAlerts;
       
-      const extractedKeywordAnalysis = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
+      // Use the new extractKeywords function for keyword extraction
+      const extractedKeywordAnalysis = extractKeywords(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
       if (extractedKeywordAnalysis && extractedKeywordAnalysis.length > 0) keywordAnalysis = extractedKeywordAnalysis;
+      
+      // Add fallback processing for keywords
+      if (!keywordAnalysis || keywordAnalysis.length === 0 || 
+          (keywordAnalysis.length > 0 && keywordAnalysis.some(k => k && k.length > 40))) {
+        console.log("⚠️ Using fallback keyword processing - keywords may need cleaning");
+        const rawKeywords = extractListItems(analysisText, "KEYWORD ANALYSIS", "IMPROVED CONTENT|CONTENT BY SECTION");
+        keywordAnalysis = cleanupKeywords(rawKeywords);
+      }
       
       // Extract sections with improved pattern matching
       const patterns = {
@@ -621,3 +639,124 @@ function extractSectionImproved(text, sectionPattern) {
   return { original: originalText, improved: improvedText };
 }
 
+// Add specialized keyword extraction function
+function extractKeywords(text, startSectionPattern, endSectionPattern) {
+  try {
+    const startRegex = new RegExp(`(${startSectionPattern})[:\\s]*`, 'i');
+    const startMatch = text.search(startRegex);
+    if (startMatch === -1) return [];
+    
+    const afterStart = text.substring(startMatch + text.substring(startMatch).match(startRegex)[0].length);
+    
+    let endMatch = -1;
+    if (endSectionPattern && endSectionPattern.length > 0) {
+      const endRegex = new RegExp(`(${endSectionPattern})`, 'i');
+      endMatch = afterStart.search(endRegex);
+    }
+    
+    const relevantText = endMatch === -1 ? afterStart.substring(0, 1000) : afterStart.substring(0, endMatch);
+    
+    // Extract keywords from bullet points
+    const keywords = [];
+    const lines = relevantText.split('\n');
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      
+      // Skip empty lines, section headers, or pure numbers
+      if (!trimmed || trimmed.match(/^#|^[A-Z].*:$/) || trimmed.match(/^\d+\.?$/)) {
+        continue;
+      }
+      
+      // Check if line is a bullet point or numbered item - these are most likely to be keywords
+      if (trimmed.match(/^(\d+\.|\*|\-)\s+/)) {
+        // Extract the content after the bullet marker
+        const content = trimmed.replace(/^(\d+\.|\*|\-)\s+/, '').trim();
+        
+        // Remove any markdown formatting and check if it's a reasonable keyword length
+        const cleanContent = content.replace(/\*\*/g, '');
+        if (cleanContent.length > 0 && cleanContent.length < 40) {
+          keywords.push(cleanContent);
+        }
+      }
+    }
+    
+    // Filter out any items that are just empty strings, numbers, or too long
+    return keywords.filter(item => 
+      item && item.trim().length > 0 && 
+      item.length < 40 && 
+      !item.match(/^\d+$/)
+    );
+  } catch (error) {
+    console.error("Error extracting keywords:", error);
+    return [];
+  }
+}
+
+// Add a fallback cleanup function for keywords
+function cleanupKeywords(rawKeywords) {
+  if (!Array.isArray(rawKeywords) || rawKeywords.length === 0) {
+    return [];
+  }
+  
+  const cleanKeywords = [];
+  
+  for (const item of rawKeywords) {
+    if (typeof item !== 'string' || !item.trim()) continue;
+    
+    // Clean the text
+    const text = item.replace(/\*\*/g, '').trim();
+    
+    // Already short enough? Just use it directly
+    if (text.length > 0 && text.length < 40 && !text.match(/^\d+$/)) {
+      cleanKeywords.push(text);
+      continue;
+    }
+    
+    // Extract quoted or emphasized phrases
+    const emphasisMatches = text.match(/"([^"]+)"|'([^']+)'|\*\*([^\*]+)\*\*/g);
+    if (emphasisMatches && emphasisMatches.length > 0) {
+      for (const match of emphasisMatches) {
+        const cleaned = match.replace(/["'*]/g, '').trim();
+        if (cleaned.length > 0 && cleaned.length < 40 && !cleaned.match(/^\d+$/)) {
+          cleanKeywords.push(cleaned);
+        }
+      }
+      continue;
+    }
+    
+    // Try to extract technical terms or domain keywords
+    const technicalTerms = text.match(/\b(Python|Java|JavaScript|React|Node\.js|AWS|Azure|DevOps|UI\/UX|Machine Learning|AI|cloud infrastructure|project management|data analysis|full stack|frontend|backend)\b/gi);
+    if (technicalTerms && technicalTerms.length > 0) {
+      for (const term of technicalTerms) {
+        if (term.length > 0 && term.length < 40 && !cleanKeywords.includes(term)) {
+          cleanKeywords.push(term);
+        }
+      }
+      continue;
+    }
+    
+    // Look for commas or semicolons that might separate items
+    if (text.includes(',') || text.includes(';')) {
+      const parts = text.split(/[,;]/);
+      for (const part of parts) {
+        const cleaned = part.trim();
+        if (cleaned.length > 0 && cleaned.length < 40 && !cleaned.match(/^\d+$/)) {
+          cleanKeywords.push(cleaned);
+        }
+      }
+      continue;
+    }
+    
+    // Last resort: Take the first 3 words if the line is too long
+    if (text.length >= 40) {
+      const words = text.split(' ').slice(0, 3).join(' ');
+      if (words.length > 0 && !cleanKeywords.includes(words)) {
+        cleanKeywords.push(words);
+      }
+    }
+  }
+  
+  // Remove duplicates and limit
+  return [...new Set(cleanKeywords)].slice(0, 15);
+}
