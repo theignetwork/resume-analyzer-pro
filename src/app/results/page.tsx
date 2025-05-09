@@ -177,7 +177,7 @@ export default function ResultsPage() {
                 <div className="flex flex-wrap gap-2">
                   {/* Only use proper keywords, not full strength descriptions */}
                   {analysis.keyword_analysis
-                    .filter(item => item && item.trim() && !item.match(/^\d+$/)
+                    .filter(item => item && item.trim() && !item.match(/^\d+$/))
                     .map((keyword, index) => (
                     <span 
                       key={index} 
