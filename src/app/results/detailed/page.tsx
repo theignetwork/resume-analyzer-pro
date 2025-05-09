@@ -376,7 +376,7 @@ const ATSOptimizationReport = () => {
               <div className="flex flex-wrap gap-2 mb-6">
                 {analysis?.keyword_analysis?.filter(item => item && item.trim()).length > 0 ? (
                   analysis.keyword_analysis
-                    .filter(item => item && item.trim() && item.length < 60)
+                    .filter(item => item && item.trim()
                     .map((keyword, index) => (
                       <Badge 
                         key={index} 
