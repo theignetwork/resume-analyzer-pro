@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import ResultsNavTabs from '../ResultsNavTabs';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Zap, Edit3, Award } from 'lucide-react';
+import { Copy, Zap, Edit3, Award, AlertTriangle } from 'lucide-react';
 
 // Reusable component for Before/After section
 interface ComparisonSectionProps {
@@ -21,6 +21,17 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
     navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy:', err));
     alert('Copied to clipboard!');
   };
+
+  // Check if original text is a placeholder or missing
+  const isOriginalMissing = !originalText || 
+                            originalText === "No original content" || 
+                            originalText.includes("[See the") || 
+                            originalText.trim().length === 0;
+  
+  // Check if improved text is missing
+  const isImprovedMissing = !improvedText || 
+                           improvedText === "No improved content" || 
+                           improvedText.trim().length === 0;
 
   return (
     <Card className="bg-card/80 backdrop-blur-sm border border-border">
@@ -37,9 +48,16 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
             <CardTitle className="text-lg text-muted-foreground">Original</CardTitle>
           </CardHeader>
           <CardContent className="relative">
-            <p className="text-sm text-muted-foreground/80 whitespace-pre-line">
-              {originalText}
-            </p>
+            {isOriginalMissing ? (
+              <div className="text-sm text-yellow-400 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                <span>Original content could not be extracted from your resume</span>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground/80 whitespace-pre-line">
+                {originalText}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -50,27 +68,36 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
             <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded font-semibold">IMPROVED</span>
           </CardHeader>
           <CardContent className="relative space-y-3">
-            <p className="text-sm text-white whitespace-pre-line">
-              {improvedText}
-            </p>
-            <div className="flex space-x-3 items-center pt-2 border-t border-primary/20">
-              {improvements?.map((imp, index) => {
-                const Icon = imp.icon;
-                return (
-                  <span key={index} className="flex items-center text-xs text-primary/80">
-                    <Icon className="w-3.5 h-3.5 mr-1" /> {imp.label}
-                  </span>
-                );
-              })}
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute bottom-3 right-3 border-primary text-primary hover:bg-primary/10 hover:text-primary h-8 px-3"
-                onClick={() => handleCopy(improvedText)}
-              >
-                <Copy className="w-4 h-4 mr-1" /> Copy
-              </Button>
-            </div>
+            {isImprovedMissing ? (
+              <div className="text-sm text-yellow-400 flex items-center">
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                <span>No improved content was generated for this section</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-white whitespace-pre-line">
+                  {improvedText}
+                </p>
+                <div className="flex space-x-3 items-center pt-2 border-t border-primary/20">
+                  {improvements?.map((imp, index) => {
+                    const Icon = imp.icon;
+                    return (
+                      <span key={index} className="flex items-center text-xs text-primary/80">
+                        <Icon className="w-3.5 h-3.5 mr-1" /> {imp.label}
+                      </span>
+                    );
+                  })}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="absolute bottom-3 right-3 border-primary text-primary hover:bg-primary/10 hover:text-primary h-8 px-3"
+                    onClick={() => handleCopy(improvedText)}
+                  >
+                    <Copy className="w-4 h-4 mr-1" /> Copy
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </CardContent>
@@ -95,7 +122,7 @@ const ImprovedContentPage = () => {
       }
       
       try {
-        // Fetch analysis data from Supabase
+        // Fetch analysis data from Supabase including the resume text
         const { data, error } = await supabase
           .from('analyses')
           .select(`
@@ -104,7 +131,8 @@ const ImprovedContentPage = () => {
               job_title,
               job_description,
               file_name,
-              file_url
+              file_url,
+              resume_text
             )
           `)
           .eq('id', analysisId)
@@ -174,6 +202,28 @@ const ImprovedContentPage = () => {
     ]
   };
   
+  // Helper function to check if a section should be shown
+  const shouldShowSection = (section) => {
+    // Always show if it has improved content
+    if (improvedSections[section]?.improved && improvedSections[section].improved.trim() !== '') 
+      return true;
+      
+    // Don't show empty sections
+    return false;
+  };
+  
+  // Process original text to handle placeholders
+  const getOriginalText = (section) => {
+    const text = improvedSections[section]?.original || "";
+    
+    // If text appears to be a placeholder, return a clear message
+    if (text.includes("[See the") || text.trim() === "") {
+      return "No original content was extracted from your resume.";
+    }
+    
+    return text;
+  };
+  
   return (
     <div className="w-full space-y-8">
       <h1 className="text-4xl font-bold text-white text-center">RESUME ANALYZER PRO</h1>
@@ -181,39 +231,60 @@ const ImprovedContentPage = () => {
       <ResultsNavTabs activeTab="improved" />
       
       <div className="w-full max-w-4xl mx-auto space-y-8">
+        {/* Show notice if no sections are available */}
+        {!shouldShowSection('summary') && 
+         !shouldShowSection('experience') && 
+         !shouldShowSection('skills') && 
+         !shouldShowSection('education') && (
+          <Card className="bg-card/80 backdrop-blur-sm border border-border">
+            <CardContent className="p-8 text-center">
+              <h2 className="text-xl font-bold text-white mb-4">No Improved Content Available</h2>
+              <p className="text-muted-foreground mb-6">
+                We couldn't generate improved content for your resume. This may happen if your resume's format was difficult to process.
+              </p>
+              <Button 
+                className="bg-primary hover:bg-primary/90"
+                onClick={() => router.push('/upload')}
+              >
+                Try Again with Different Format
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+        
         {/* Only show sections that exist in the data */}
-        {improvedSections.summary && (
+        {shouldShowSection('summary') && (
           <ComparisonSection
             title="Summary"
-            originalText={improvedSections.summary.original || "No original content"}
-            improvedText={improvedSections.summary.improved || "No improved content"}
+            originalText={getOriginalText('summary')}
+            improvedText={improvedSections.summary.improved || ""}
             improvements={sectionImprovements.summary}
           />
         )}
         
-        {improvedSections.experience && (
+        {shouldShowSection('experience') && (
           <ComparisonSection
             title="Experience"
-            originalText={improvedSections.experience.original || "No original content"}
-            improvedText={improvedSections.experience.improved || "No improved content"}
+            originalText={getOriginalText('experience')}
+            improvedText={improvedSections.experience.improved || ""}
             improvements={sectionImprovements.experience}
           />
         )}
         
-        {improvedSections.skills && (
+        {shouldShowSection('skills') && (
           <ComparisonSection
             title="Skills"
-            originalText={improvedSections.skills.original || "No original content"}
-            improvedText={improvedSections.skills.improved || "No improved content"}
+            originalText={getOriginalText('skills')}
+            improvedText={improvedSections.skills.improved || ""}
             improvements={sectionImprovements.skills}
           />
         )}
         
-        {improvedSections.education && (
+        {shouldShowSection('education') && (
           <ComparisonSection
             title="Education"
-            originalText={improvedSections.education.original || "No original content"}
-            improvedText={improvedSections.education.improved || "No improved content"}
+            originalText={getOriginalText('education')}
+            improvedText={improvedSections.education.improved || ""}
             improvements={sectionImprovements.education}
           />
         )}
