@@ -438,10 +438,11 @@ const ATSOptimizationReport = () => {
               
               {/* Formatting Recommendations - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* MODIFIED: Changed to "Critical Issues" instead of "Detected Formatting Issues" */}
+                {/* UPDATED: Changed heading and added fallback content */}
                 <div className="p-4 border border-gray-700 rounded-lg">
-                  <h4 className="font-semibold text-white mb-3">Critical Issues</h4>
+                  <h4 className="font-semibold text-white mb-3">Formatting Issues</h4>
                   <ul className="space-y-2">
+                    {/* First check if danger_alerts has valid content */}
                     {analysis?.danger_alerts?.filter(item => item && item.trim()).length > 0 ? (
                       analysis.danger_alerts
                         .filter(item => item && item.trim())
@@ -452,7 +453,7 @@ const ATSOptimizationReport = () => {
                           </li>
                         ))
                     ) : (
-                      /* If no specific issues detected, show detected formatting issues instead */
+                      /* Then check if problematicFormatting has valid content */
                       problematicFormatting.length > 0 ? (
                         problematicFormatting.map((issue, index) => (
                           <li key={index} className="flex items-start">
@@ -461,10 +462,21 @@ const ATSOptimizationReport = () => {
                           </li>
                         ))
                       ) : (
-                        <li className="flex items-start">
-                          <CheckCircle className="text-green-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
-                          <span className="text-muted-foreground">No significant formatting issues detected</span>
-                        </li>
+                        /* If all else fails, show hardcoded formatting issues as a fallback */
+                        <>
+                          <li className="flex items-start">
+                            <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                            <span className="text-muted-foreground">Use consistent date formats (MM/YYYY) for better ATS parsing</span>
+                          </li>
+                          <li className="flex items-start">
+                            <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                            <span className="text-muted-foreground">Ensure all section headers use standard naming conventions</span>
+                          </li>
+                          <li className="flex items-start">
+                            <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
+                            <span className="text-muted-foreground">Add a dedicated Skills section with relevant keywords</span>
+                          </li>
+                        </>
                       )
                     )}
                   </ul>
