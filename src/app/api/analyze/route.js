@@ -174,8 +174,6 @@ ${JSON.stringify({
 }, null, 2)}
 
 IMPORTANT FORMATTING INSTRUCTIONS:
-- Use <strong>bold text</strong> for emphasis instead of ** markdown formatting
-- Always use HTML-style formatting for any text emphasis
 - Be sure to complete ALL sections in your response
 
 You must directly compare the ATS STRUCTURED DATA above against the JOB DESCRIPTION to assess:
