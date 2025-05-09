@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import ResultsNavTabs from '../ResultsNavTabs';
+import KeywordDisplay from '@/components/ui/KeywordDisplay'; // Add this import
 
 const ATSOptimizationReport = () => {
   // State for analysis data
@@ -361,36 +362,21 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Keyword Gap Analysis - FIXED WITH LENGTH AND ASTERISK FILTERING */}
+        {/* Keyword Gap Analysis - UPDATED to use KeywordDisplay component */}
         <div className="lg:col-span-2">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-xl text-white">Keyword Gap Analysis</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
-                Your resume is missing these important keywords from the job description. 
-                Including them will significantly improve your ATS score.
-              </p>
+              {/* Add KeywordDisplay component here instead of manual keyword rendering */}
+              <KeywordDisplay 
+                keywords={analysis?.keyword_analysis}
+                title=""
+                description="Your resume is missing these important keywords from the job description. Including them will significantly improve your ATS score."
+              />
               
-              <div className="flex flex-wrap gap-2 mb-6">
-                {analysis?.keyword_analysis?.filter(item => item && item.trim()).length > 0 ? (
-                  analysis.keyword_analysis
-                    .filter(item => item && item.trim())
-                    .map((keyword, index) => (
-                      <Badge 
-                        key={index} 
-                        className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/20 px-3 py-1"
-                      >
-                        {keyword.replace(/\*\*/g, '')}
-                      </Badge>
-                    ))
-                ) : (
-                  <p className="text-muted-foreground">No keyword gaps identified.</p>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 mt-6">
                 <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
                   <h4 className="font-semibold text-primary mb-1">Where to Add Keywords</h4>
                   <ul className="ml-5 text-sm list-disc text-muted-foreground">
