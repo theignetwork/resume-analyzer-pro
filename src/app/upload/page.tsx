@@ -91,13 +91,18 @@ const UploadPage = () => {
       
       console.log("File uploaded successfully:", filePath);
       
-      // 2. Get public URL for the file
+      // 2. Get public URL for the file and fix it to include /public/
       const { data: urlData } = await supabase.storage
         .from('resume-files')
         .getPublicUrl(filePath);
       
-      const fileUrl = urlData.publicUrl;
-      console.log("File public URL:", fileUrl);
+      // Fix the URL by adding /public/ if it's missing
+      let fileUrl = urlData.publicUrl;
+      if (!fileUrl.includes('/public/')) {
+        fileUrl = fileUrl.replace('/storage/v1/object/', '/storage/v1/object/public/');
+      }
+      
+      console.log("File public URL (fixed):", fileUrl);
       
       // 3. Store metadata in the database
       console.log("Saving metadata to database...");
@@ -206,5 +211,3 @@ const UploadPage = () => {
 };
 
 export default UploadPage;
-
-
