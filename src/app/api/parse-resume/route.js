@@ -76,17 +76,36 @@ export async function POST(request) {
       resumeText = "Text extraction failed. This may be due to the document being an image-based PDF without embedded text.";
     }
 
+    // FIXED: Transform Affinda data to fix the skills field name issue
+    const transformedData = {
+      ...parsedData,
+      data: {
+        ...parsedData.data,
+        skills: parsedData.data?.skill || [] // Fix: Affinda uses 'skill' not 'skills'
+      }
+    };
+
+    // Add debug logging to verify the fix
+    console.log("Skills found in Affinda data:", parsedData.data?.skill?.length || 0);
+    console.log("Skills after transformation:", transformedData.data?.skills?.length || 0);
+
     const documentType = parsedData.meta?.documentType || 'unknown';
     const { error: updateError } = await supabase.from('resumes').update({
-      resume_structured_data: parsedData,
+      resume_structured_data: transformedData, // FIXED: Using transformed data instead of raw
       resume_text: resumeText,
       parser_version: `v3-${documentType}`
     }).eq('id', resumeId);
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ success: true, message: 'Resume parsed successfully', documentType });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Resume parsed successfully', 
+      documentType,
+      skillsFound: transformedData.data?.skills?.length || 0 // Debug info
+    });
   } catch (error) {
+    console.error("Parse resume error:", error);
     return NextResponse.json({ error: 'API error: ' + error.message }, { status: 500 });
   }
 }
