@@ -4,17 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   CheckCircle, AlertCircle, XCircle, FileText, User, Briefcase, 
   GraduationCap, Tag, Copy, Clock, Award, BookOpen 
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import ResultsNavTabs from '../ResultsNavTabs';
 
 const ATSOptimizationReport = () => {
-  // State for active tab and analysis data
-  const [activeTab, setActiveTab] = useState("ats-optimization");
+  // State for analysis data
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -48,9 +47,21 @@ const ATSOptimizationReport = () => {
           
         if (error) throw error;
         
-        console.log("Analysis data for ATS:", data);
+        // 🔥 ENHANCED DEBUG LOGGING 🔥
+        console.log("=== RESUME ANALYSIS DEBUG ===");
+        console.log("Full analysis data:", data);
         console.log("Structured data:", data?.structured_data);
         console.log("Confidence scores:", data?.confidence_scores);
+        console.log("Skills from structured_data:", data?.structured_data?.skills);
+        console.log("Skills confidence:", data?.confidence_scores?.sections?.skills);
+        console.log("All confidence sections:", data?.confidence_scores?.sections);
+        console.log("Raw text or other fields:", {
+          skillsText: data?.structured_data?.skillsText,
+          technicalSkills: data?.structured_data?.technicalSkills,
+          coreCompetencies: data?.structured_data?.coreCompetencies,
+          allKeys: data?.structured_data ? Object.keys(data.structured_data) : 'no structured_data'
+        });
+        console.log("===============================");
         
         setAnalysis(data);
       } catch (err) {
@@ -220,16 +231,8 @@ const ATSOptimizationReport = () => {
     <div className="w-full max-w-6xl mx-auto space-y-8">
       <h1 className="text-4xl font-bold text-white text-center mb-2">RESUME ANALYZER PRO</h1>
       
-      {/* Tabs Navigation */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-5 w-full">
-          <TabsTrigger value="overview" onClick={() => router.push('/results')}>Overview</TabsTrigger>
-          <TabsTrigger value="ats-optimization" className="bg-primary text-primary-foreground">ATS Optimization</TabsTrigger>
-          <TabsTrigger value="improved-content" onClick={() => router.push('/results/improved')}>Improved Content</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
-          <TabsTrigger value="report">Report</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {/* Replaced Tabs with ResultsNavTabs */}
+      <ResultsNavTabs />
       
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -370,7 +373,7 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Keyword Gap Analysis */}
+        {/* Keyword Gap Analysis - FIXED WITH LENGTH AND ASTERISK FILTERING */}
         <div className="lg:col-span-2">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
@@ -391,7 +394,7 @@ const ATSOptimizationReport = () => {
                         key={index} 
                         className="bg-primary/20 hover:bg-primary/30 text-primary border-primary/20 px-3 py-1"
                       >
-                        {keyword}
+                        {keyword.replace(/\*\*/g, '')}
                       </Badge>
                     ))
                 ) : (
