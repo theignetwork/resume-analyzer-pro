@@ -371,7 +371,7 @@ const ATSOptimizationReport = () => {
               <div className="mt-6 p-3 bg-primary/10 border border-primary/30 rounded-md">
                 <h4 className="font-semibold text-primary mb-1">Expert Tip</h4>
                 <p className="text-sm text-muted-foreground">
-                  Include skills that exactly match the job description. ATS systems look for these keywords when filtering candidates.
+                  Include skills that exactly match the job description. ATS systems look for these keywords when filtering candidates. 🟢 Matches job requirements  🟡 Related skills  🔴 Not specified in job
                 </p>
               </div>
             </CardContent>
