@@ -332,51 +332,34 @@ const ATSOptimizationReport = () => {
         </div>
         
         {/* Detected Skills */}
-<div className="lg:col-span-1">
-  <Card className="bg-card/50 backdrop-blur-sm border-primary/20 h-full">
-    <CardHeader className="pb-2">
-      <CardTitle className="text-xl text-white">Skills Detected by ATS</CardTitle>
-    </CardHeader>
-    <CardContent>
-      <p className="text-muted-foreground mb-2">
-        These skills were automatically detected by the ATS from your resume.
-      </p>
-      <p className="text-xs text-muted-foreground mb-4">
-        <span className="text-green-500">●</span> Matches job requirements  
-        <span className="text-yellow-500">●</span> Related skills  
-        <span className="text-red-500">●</span> Not specified in job
-      </p>
-      <div className="space-y-2">
-        {skills.length > 0 ? (
-          skills.map((skill, index) => (
-            <div key={index} className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <ConfidenceIndicator confidence={skill.confidence} />
-                <span className="text-white">{skill.name}</span>
-              </div>
-              {skill.level && (
-                <Badge variant="outline" className="text-xs">
-                  {skill.level}
-                </Badge>
-              )}
-            </div>
-          ))
-        ) : (
-          <p className="text-muted-foreground">
-            No skills were automatically detected. Consider adding a clearly labeled skills section.
-          </p>
-        )}
-      </div>
-      
-      <div className="mt-6 p-3 bg-primary/10 border border-primary/30 rounded-md">
-        <h4 className="font-semibold text-primary mb-1">Expert Tip</h4>
-        <p className="text-sm text-muted-foreground">
-          Include skills that exactly match the job description. ATS systems look for these keywords when filtering candidates.
-        </p>
-      </div>
-    </CardContent>
-  </Card>
-</div>
+        <div className="lg:col-span-1">
+          <Card className="bg-card/50 backdrop-blur-sm border-primary/20 h-full">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl text-white">Skills Detected by ATS</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-2">
+                These skills were automatically detected by the ATS from your resume.
+              </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                <span className="text-green-500">●</span> Matches job requirements  
+                <span className="text-yellow-500">●</span> Related skills  
+                <span className="text-red-500">●</span> Not specified in job
+              </p>
+              <div className="space-y-2">
+                {skills.length > 0 ? (
+                  skills.map((skill, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <ConfidenceIndicator confidence={skill.confidence} />
+                        <span className="text-white">{skill.name}</span>
+                      </div>
+                      {skill.level && (
+                        <Badge variant="outline" className="text-xs">
+                          {skill.level}
+                        </Badge>
+                      )}
+                    </div>
                   ))
                 ) : (
                   <p className="text-muted-foreground">
@@ -395,7 +378,7 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Keyword Gap Analysis - FIXED WITH LENGTH AND ASTERISK FILTERING */}
+        {/* Keyword Gap Analysis */}
         <div className="lg:col-span-2">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
@@ -449,7 +432,7 @@ const ATSOptimizationReport = () => {
           </Card>
         </div>
         
-        {/* Formatting Issues - MODIFIED SECTION */}
+        {/* Formatting Issues */}
         <div className="lg:col-span-3">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardHeader className="pb-2">
@@ -463,11 +446,9 @@ const ATSOptimizationReport = () => {
               
               {/* Formatting Recommendations - Two Column Layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* UPDATED: Changed heading and added fallback content */}
                 <div className="p-4 border border-gray-700 rounded-lg">
                   <h4 className="font-semibold text-white mb-3">Formatting Issues</h4>
                   <ul className="space-y-2">
-                    {/* First check if danger_alerts has valid content */}
                     {analysis?.danger_alerts?.filter(item => item && item.trim()).length > 0 ? (
                       analysis.danger_alerts
                         .filter(item => item && item.trim())
@@ -478,7 +459,6 @@ const ATSOptimizationReport = () => {
                           </li>
                         ))
                     ) : (
-                      /* Then check if problematicFormatting has valid content */
                       problematicFormatting.length > 0 ? (
                         problematicFormatting.map((issue, index) => (
                           <li key={index} className="flex items-start">
@@ -487,7 +467,6 @@ const ATSOptimizationReport = () => {
                           </li>
                         ))
                       ) : (
-                        /* If all else fails, show hardcoded formatting issues as a fallback */
                         <>
                           <li className="flex items-start">
                             <AlertCircle className="text-yellow-500 mr-2 mt-0.5 flex-shrink-0 w-4 h-4" />
