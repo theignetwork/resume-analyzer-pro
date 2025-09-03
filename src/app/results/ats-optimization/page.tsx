@@ -338,8 +338,11 @@ const ATSOptimizationReport = () => {
               <CardTitle className="text-xl text-white">Skills Detected by ATS</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground mb-4">
+              <p className="text-muted-foreground mb-2">
                 These skills were automatically detected by the ATS from your resume.
+              </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                🟢 Matches job requirements  🟡 Related skills  🔴 Not specified in job
               </p>
               <div className="space-y-2">
                 {skills.length > 0 ? (
