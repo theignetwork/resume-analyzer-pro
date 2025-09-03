@@ -332,32 +332,51 @@ const ATSOptimizationReport = () => {
         </div>
         
         {/* Detected Skills */}
-        <div className="lg:col-span-1">
-          <Card className="bg-card/50 backdrop-blur-sm border-primary/20 h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl text-white">Skills Detected by ATS</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-2">
-                These skills were automatically detected by the ATS from your resume.
-              </p>
-              <p className="text-xs text-muted-foreground mb-4">
-                🟢 Matches job requirements  🟡 Related skills  🔴 Not specified in job
-              </p>
-              <div className="space-y-2">
-                {skills.length > 0 ? (
-                  skills.map((skill, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div className="flex items-center gap-2">
-                        <ConfidenceIndicator confidence={skill.confidence} />
-                        <span className="text-white">{skill.name}</span>
-                      </div>
-                      {skill.level && (
-                        <Badge variant="outline" className="text-xs">
-                          {skill.level}
-                        </Badge>
-                      )}
-                    </div>
+<div className="lg:col-span-1">
+  <Card className="bg-card/50 backdrop-blur-sm border-primary/20 h-full">
+    <CardHeader className="pb-2">
+      <CardTitle className="text-xl text-white">Skills Detected by ATS</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <p className="text-muted-foreground mb-2">
+        These skills were automatically detected by the ATS from your resume.
+      </p>
+      <p className="text-xs text-muted-foreground mb-4">
+        <span className="text-green-500">●</span> Matches job requirements  
+        <span className="text-yellow-500">●</span> Related skills  
+        <span className="text-red-500">●</span> Not specified in job
+      </p>
+      <div className="space-y-2">
+        {skills.length > 0 ? (
+          skills.map((skill, index) => (
+            <div key={index} className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <ConfidenceIndicator confidence={skill.confidence} />
+                <span className="text-white">{skill.name}</span>
+              </div>
+              {skill.level && (
+                <Badge variant="outline" className="text-xs">
+                  {skill.level}
+                </Badge>
+              )}
+            </div>
+          ))
+        ) : (
+          <p className="text-muted-foreground">
+            No skills were automatically detected. Consider adding a clearly labeled skills section.
+          </p>
+        )}
+      </div>
+      
+      <div className="mt-6 p-3 bg-primary/10 border border-primary/30 rounded-md">
+        <h4 className="font-semibold text-primary mb-1">Expert Tip</h4>
+        <p className="text-sm text-muted-foreground">
+          Include skills that exactly match the job description. ATS systems look for these keywords when filtering candidates.
+        </p>
+      </div>
+    </CardContent>
+  </Card>
+</div>
                   ))
                 ) : (
                   <p className="text-muted-foreground">
