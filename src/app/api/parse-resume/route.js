@@ -76,19 +76,111 @@ export async function POST(request) {
       resumeText = "Text extraction failed. This may be due to the document being an image-based PDF without embedded text.";
     }
 
+    // Transform Affinda data into our expected format
+    const transformedData = transformAffindaResponse(parsedData);
+    
+    // Debug logging to help troubleshoot
+    console.log("Raw Affinda skills:", parsedData?.data?.skills);
+    console.log("Transformed skills data:", transformedData.skills);
+    console.log("Skills count:", transformedData.skills?.length || 0);
+
     const documentType = parsedData.meta?.documentType || 'unknown';
     const { error: updateError } = await supabase.from('resumes').update({
-      resume_structured_data: parsedData,
+      resume_structured_data: transformedData, // Using transformed data instead of raw
       resume_text: resumeText,
       parser_version: `v3-${documentType}`
     }).eq('id', resumeId);
 
     if (updateError) throw updateError;
 
-    return NextResponse.json({ success: true, message: 'Resume parsed successfully', documentType });
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Resume parsed successfully', 
+      documentType,
+      skillsFound: transformedData.skills?.length || 0
+    });
   } catch (error) {
+    console.error("Parse resume error:", error);
     return NextResponse.json({ error: 'API error: ' + error.message }, { status: 500 });
   }
+}
+
+// Transform Affinda response into our expected frontend format
+function transformAffindaResponse(affindaData) {
+  const data = affindaData?.data || {};
+  
+  return {
+    // Personal Information
+    personalInfo: {
+      name: data.name?.raw || '',
+      email: data.emails?.[0]?.raw || '',
+      phone: data.phoneNumbers?.[0]?.raw || '',
+      location: data.location?.raw || ''
+    },
+    
+    // Summary/Objective
+    summary: data.objective || data.summary || '',
+    
+    // Work Experience
+    workExperience: data.workExperience?.map(exp => ({
+      jobTitle: exp.jobTitle || '',
+      organization: exp.organization || '',
+      startDate: exp.dates?.startDate || '',
+      endDate: exp.dates?.endDate || '',
+      description: exp.jobDescription || ''
+    })) || [],
+    
+    // Education
+    education: data.education?.map(edu => ({
+      institution: edu.organization || '',
+      degree: edu.accreditation?.education || '',
+      field: edu.accreditation?.educationLevel || '',
+      startDate: edu.dates?.startDate || '',
+      endDate: edu.dates?.endDate || ''
+    })) || [],
+    
+    // Skills - THE KEY FIX FOR THE SKILLS DETECTION ISSUE
+    skills: data.skills?.map(skill => {
+      // Handle both string and object formats from Affinda
+      if (typeof skill === 'string') {
+        return {
+          name: skill,
+          level: null,
+          confidence: 0.8
+        };
+      } else if (typeof skill === 'object') {
+        return {
+          name: skill.name || skill.skill || skill,
+          level: skill.level || null,
+          confidence: skill.confidence || 0.8
+        };
+      }
+      return null;
+    }).filter(Boolean) || [],
+    
+    // Certifications
+    certifications: data.certifications?.map(cert => ({
+      name: cert.name || '',
+      issuer: cert.issuer || '',
+      date: cert.date || ''
+    })) || [],
+    
+    // Languages
+    languages: data.languages?.map(lang => ({
+      name: lang.name || lang,
+      proficiency: lang.proficiency || ''
+    })) || [],
+    
+    // Projects (if available)
+    projects: data.projects?.map(project => ({
+      name: project.name || '',
+      description: project.description || '',
+      technologies: project.technologies || []
+    })) || [],
+    
+    // Keep raw Affinda data for debugging and future use
+    _rawAffindaData: affindaData
+  };
 }
 
 function extractTextFromResponse(data) {
