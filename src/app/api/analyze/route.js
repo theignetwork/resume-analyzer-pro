@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
+// Debug: Check if API key is loaded
+console.log("🔑 CLAUDE_API_KEY exists:", !!process.env.CLAUDE_API_KEY);
+console.log("🔑 CLAUDE_API_KEY length:", process.env.CLAUDE_API_KEY?.length || 0);
+console.log("🔑 CLAUDE_API_KEY starts with:", process.env.CLAUDE_API_KEY?.substring(0, 15) || 'undefined');
+
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
 });
