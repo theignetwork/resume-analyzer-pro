@@ -3,14 +3,19 @@ import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Debug: Check if API key is loaded
-const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
-console.log("🔑 API Key exists:", !!apiKey);
-console.log("🔑 API Key length:", apiKey?.length || 0);
-console.log("🔑 API Key starts with:", apiKey?.substring(0, 15) || 'undefined');
-console.log("🔑 API Key ends with:", apiKey?.substring(apiKey.length - 4) || 'undefined');
+console.log("🔑 ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
+console.log("🔑 CLAUDE_API_KEY exists:", !!process.env.CLAUDE_API_KEY);
+console.log("🔑 All env keys:", Object.keys(process.env).filter(k => k.includes('API')).join(', '));
+
+const apiKey = process.env.ANTHROPIC_API_KEY;
+console.log("🔑 Using API Key exists:", !!apiKey);
+console.log("🔑 Using API Key length:", apiKey?.length || 0);
+console.log("🔑 Using API Key starts with:", apiKey?.substring(0, 15) || 'undefined');
+console.log("🔑 Using API Key ends with:", apiKey?.substring(apiKey.length - 4) || 'undefined');
 
 if (!apiKey) {
-  console.error("❌ No API key found in environment variables");
+  console.error("❌ No ANTHROPIC_API_KEY found in environment variables");
+  throw new Error("ANTHROPIC_API_KEY environment variable is not set");
 }
 
 const anthropic = new Anthropic({
