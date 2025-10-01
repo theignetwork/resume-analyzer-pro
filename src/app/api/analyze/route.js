@@ -3,12 +3,18 @@ import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Debug: Check if API key is loaded
-console.log("🔑 CLAUDE_API_KEY exists:", !!process.env.CLAUDE_API_KEY);
-console.log("🔑 CLAUDE_API_KEY length:", process.env.CLAUDE_API_KEY?.length || 0);
-console.log("🔑 CLAUDE_API_KEY starts with:", process.env.CLAUDE_API_KEY?.substring(0, 15) || 'undefined');
+const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
+console.log("🔑 API Key exists:", !!apiKey);
+console.log("🔑 API Key length:", apiKey?.length || 0);
+console.log("🔑 API Key starts with:", apiKey?.substring(0, 15) || 'undefined');
+console.log("🔑 API Key ends with:", apiKey?.substring(apiKey.length - 4) || 'undefined');
+
+if (!apiKey) {
+  console.error("❌ No API key found in environment variables");
+}
 
 const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
+  apiKey: apiKey,
 });
 
 export async function POST(request) {

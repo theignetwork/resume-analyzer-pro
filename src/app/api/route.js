@@ -3,8 +3,9 @@ import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 
 // Initialize Anthropic client
+const apiKey = process.env.CLAUDE_API_KEY || process.env.ANTHROPIC_API_KEY;
 const anthropic = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
+  apiKey: apiKey,
 });
 
 export async function POST(request) {
