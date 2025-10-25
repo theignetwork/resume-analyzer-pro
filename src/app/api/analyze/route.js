@@ -93,6 +93,15 @@ export async function POST(request) {
         }
 
         if (Array.isArray(data.workExperience)) {
+          // DEBUG: Log the raw work experience data structure
+          console.log("=== WORK EXPERIENCE DEBUG (analyze route) ===");
+          console.log("Number of work experience entries:", data.workExperience.length);
+          if (data.workExperience[0]) {
+            console.log("First work experience raw object:", JSON.stringify(data.workExperience[0], null, 2));
+            console.log("Available keys:", Object.keys(data.workExperience[0]));
+          }
+          console.log("=============================================");
+
           structuredData.workExperience = data.workExperience.map(job => ({
             jobTitle: job.jobTitle?.raw || "",
             organization: job.organization?.raw || "",
