@@ -405,7 +405,7 @@ const ATSOptimizationReport = () => {
         {(structuredData.certifications?.length > 0 ||
           structuredData.languages?.length > 0 ||
           structuredData.workExperience?.length > 0) && (
-          <div className="lg:col-span-2 lg:col-start-2 lg:row-start-3">
+          <div className="lg:col-span-2">
             <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
               <CardHeader className="pb-2">
                 <CardTitle className="text-xl text-white">Resume Highlights</CardTitle>
