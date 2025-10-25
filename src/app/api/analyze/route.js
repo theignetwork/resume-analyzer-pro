@@ -260,39 +260,40 @@ Example format:
 - cloud infrastructure
 
 ## 6. IMPROVED CONTENT BY SECTION
-For each section below, you must:
-1. First, copy the EXACT text from my resume under "Original [Section]"
-2. Then, provide an improved version under "Improved [Section]"
 
-CRITICAL INSTRUCTIONS FOR IMPROVED SECTIONS:
+CRITICAL INSTRUCTIONS:
+- For EACH section below, you MUST provide TWO things:
+  1. Under "Original [Section]": Copy the EXACT text from my resume for that section word-for-word
+  2. Under "Improved [Section]": Provide your enhanced version
+- Do NOT use placeholder text like "[See resume...]" - you must copy the ACTUAL text from my resume
 - Do NOT copy the original text verbatim into the improved section - this makes the tool look broken
-- Only respond with "No improvement needed" if the original is EXCEPTIONAL (perfectly written, heavily quantified, ATS-optimized with strong keywords, clearly superior to typical resumes)
+- Only say "No improvement needed" if the original is EXCEPTIONAL (perfectly written, heavily quantified, ATS-optimized)
 - Otherwise, look for ANY opportunity to improve keyword density, quantification, clarity, or ATS compatibility
-- Keep improved versions similar in length to the original - avoid making them significantly longer, but prioritize quality over exact length matching
+- Keep improved versions similar in length to the original
 
 ### Original Summary
-[Copy the exact summary/profile text from my resume here]
+COPY THE ACTUAL SUMMARY TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
 
 ### Improved Summary
-[Your improved version here, following the instructions above]
+YOUR ENHANCED VERSION OF THE SUMMARY HERE
 
 ### Original Experience
-[Copy the exact experience section text from my resume here]
+COPY THE ACTUAL EXPERIENCE TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
 
 ### Improved Experience
-[Your improved version here, following the instructions above]
+YOUR ENHANCED VERSION OF THE EXPERIENCE HERE
 
 ### Original Skills
-[Copy the exact skills section text from my resume here]
+COPY THE ACTUAL SKILLS TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
 
 ### Improved Skills
-[Your improved version here, following the instructions above]
+YOUR ENHANCED VERSION OF THE SKILLS HERE
 
 ### Original Education
-[Copy the exact education section text from my resume here]
+COPY THE ACTUAL EDUCATION TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
 
 ### Improved Education
-[Your improved version here, following the instructions above]
+YOUR ENHANCED VERSION OF THE EDUCATION HERE
 
 ## 7. ATS COMPATIBILITY ANALYSIS
 Based on the structured data provided, analyze how different ATS systems might interpret my resume:
