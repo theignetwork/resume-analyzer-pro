@@ -412,6 +412,19 @@ const ATSOptimizationReport = () => {
 
                   <div className="space-y-4">
                   {/* Years of Experience */}
+                  {structuredData.workExperience?.length > 0 && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4 text-primary" />
+                        <h4 className="font-semibold text-primary">Work Experience</h4>
+                      </div>
+                      <p className="text-white">
+                        {structuredData.workExperience.length} position{structuredData.workExperience.length > 1 ? 's' : ''} found
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Years of Experience - COMMENTED OUT FOR NOW
                   {structuredData.workExperience?.length > 0 && (() => {
                     // Calculate years of experience
                     const experiences = structuredData.workExperience;
@@ -446,6 +459,7 @@ const ATSOptimizationReport = () => {
                       </div>
                     );
                   })()}
+                  */}
 
                   {/* Certifications */}
                   {structuredData.certifications?.length > 0 && (
