@@ -386,7 +386,7 @@ const ATSOptimizationReport = () => {
                     <li>Education section (relevant coursework)</li>
                   </ul>
                 </div>
-                
+
                 <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
                   <h4 className="font-semibold text-primary mb-1">How to Add Keywords</h4>
                   <ul className="ml-5 text-sm list-disc text-muted-foreground">
@@ -397,25 +397,20 @@ const ATSOptimizationReport = () => {
                   </ul>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Resume Highlights - NEW SECTION */}
-        {(structuredData.certifications?.length > 0 ||
-          structuredData.languages?.length > 0 ||
-          structuredData.workExperience?.length > 0) && (
-          <div className="lg:col-span-2 lg:col-start-2 lg:-mt-6">
-            <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl text-white">Resume Highlights</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground mb-4">
-                  Key credentials detected by ATS. Use these insights to strengthen your resume positioning.
-                </p>
+              {/* Resume Highlights - MOVED INSIDE SAME CARD */}
+              {(structuredData.certifications?.length > 0 ||
+                structuredData.languages?.length > 0 ||
+                structuredData.workExperience?.length > 0) && (
+                <>
+                  <hr className="my-6 border-gray-700" />
 
-                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-white mb-3">Resume Highlights</h3>
+                  <p className="text-muted-foreground mb-4 text-sm">
+                    Key credentials detected by ATS. Use these insights to strengthen your resume positioning.
+                  </p>
+
+                  <div className="space-y-4">
                   {/* Years of Experience */}
                   {structuredData.workExperience?.length > 0 && (() => {
                     // Calculate years of experience
@@ -535,11 +530,11 @@ const ATSOptimizationReport = () => {
                       </li>
                     </ul>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Formatting Issues - MODIFIED SECTION */}
         <div className="lg:col-span-3">
