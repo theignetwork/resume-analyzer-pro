@@ -6,7 +6,8 @@ import { supabase } from '@/lib/supabase';
 import ResultsNavTabs from '../ResultsNavTabs';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Copy, Zap, Edit3, Award, AlertTriangle } from 'lucide-react';
+import { Copy, Zap, Edit3, Award, AlertTriangle, Check } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 // Reusable component for Before/After section
 interface ComparisonSectionProps {
@@ -17,9 +18,27 @@ interface ComparisonSectionProps {
 }
 
 const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalText, improvedText, improvements }) => {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text).catch(err => console.error('Failed to copy:', err));
-    alert('Copied to clipboard!');
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopied(true);
+        toast({
+          title: "Copied!",
+          description: `${title} content copied to clipboard`,
+        });
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+        toast({
+          title: "Copy failed",
+          description: "Please try again",
+          variant: "destructive",
+        });
+      });
   };
 
   // Check if original text is a placeholder or missing
@@ -90,10 +109,22 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
                   <Button
                     variant="outline"
                     size="sm"
-                    className="absolute bottom-3 right-3 border-primary text-primary hover:bg-primary/10 hover:text-primary h-8 px-3"
+                    className={`absolute bottom-3 right-3 h-8 px-3 transition-colors ${
+                      copied
+                        ? "border-green-500 text-green-500 bg-green-500/10"
+                        : "border-primary text-primary hover:bg-primary/10 hover:text-primary"
+                    }`}
                     onClick={() => handleCopy(improvedText)}
                   >
-                    <Copy className="w-4 h-4 mr-1" /> Copy
+                    {copied ? (
+                      <>
+                        <Check className="w-4 h-4 mr-1" /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-4 h-4 mr-1" /> Copy
+                      </>
+                    )}
                   </Button>
                 </div>
               </>

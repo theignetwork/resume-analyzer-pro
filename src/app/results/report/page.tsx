@@ -6,6 +6,7 @@ import ResultsNavTabs from '../ResultsNavTabs'; // Adjust path as needed
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Mail, CheckSquare } from 'lucide-react'; // Icons
+import { useToast } from "@/hooks/use-toast";
 
 // Placeholder for the report preview content
 const ReportPreviewContent = () => {
@@ -102,11 +103,16 @@ const ReportPreviewContent = () => {
 };
 
 const ReportPreviewPage = () => {
+  const { toast } = useToast();
+
   // Function to handle download (placeholder)
   const handleDownload = () => {
     console.log("Download report clicked");
     // In a real app, trigger PDF generation/download
-    alert("Placeholder: Report download initiated.");
+    toast({
+      title: "Feature Coming Soon",
+      description: "PDF report download will be available soon!",
+    });
   };
 
   return (

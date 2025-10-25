@@ -1,4 +1,7 @@
+'use client';
+
 import React from 'react';
+import { Toaster } from "@/components/ui/toaster";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,6 +17,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <footer className="text-center text-muted-foreground py-4 mt-8">
         Powered by The IG Network
       </footer>
+      <Toaster />
     </div>
   );
 };
