@@ -530,6 +530,7 @@ const ATSOptimizationReport = () => {
                       </li>
                     </ul>
                   </div>
+                </div>
                 </>
               )}
             </CardContent>
