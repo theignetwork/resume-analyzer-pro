@@ -243,25 +243,25 @@ For each section below, copy the exact text from my resume then provide an impro
 [Copy the exact summary/profile text from my resume]
 
 ### Improved Summary
-[If the original summary is already well-written, clear, and ATS-optimized, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that incorporates keywords, better structure, and stronger content. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
+[IMPORTANT: Do NOT copy the original text verbatim - this makes the tool look broken. Only respond with "No improvement needed" if the original is EXCEPTIONAL (perfectly written, heavily quantified, ATS-optimized with strong keywords, and clearly superior to typical resumes). Otherwise, look for ANY opportunity to improve keyword density, quantification, clarity, or ATS compatibility. Keep the improved version similar in length to the original - avoid making it significantly longer, but focus on quality improvements over exact length matching.]
 
 ### Original Experience
 [Copy the exact experience section text from my resume]
 
 ### Improved Experience
-[If the original experience section is already well-written, clear, and ATS-optimized, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that quantifies achievements, incorporates keywords, and highlights relevant skills. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
+[IMPORTANT: Do NOT copy the original text verbatim - this makes the tool look broken. Only respond with "No improvement needed" if the original is EXCEPTIONAL (perfectly quantified with metrics, heavily ATS-optimized, packed with relevant keywords, and clearly superior to typical resumes). Otherwise, look for ANY opportunity to add quantification, incorporate keywords, highlight achievements, or improve ATS compatibility. Keep the improved version similar in length to the original - avoid making it significantly longer, but focus on quality improvements over exact length matching.]
 
 ### Original Skills
 [Copy the exact skills section text from my resume]
 
 ### Improved Skills
-[If the original skills section is already well-organized and includes relevant keywords, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that better organizes skills and incorporates missing keywords. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
+[IMPORTANT: Do NOT copy the original text verbatim - this makes the tool look broken. Only respond with "No improvement needed" if the original is EXCEPTIONAL (perfectly organized, includes all relevant keywords from job description, and clearly superior to typical resumes). Otherwise, look for ANY opportunity to better organize skills, incorporate missing keywords, or improve relevance. Keep the improved version similar in length to the original - avoid making it significantly longer, but focus on quality improvements over exact length matching.]
 
 ### Original Education
 [Copy the exact education section text from my resume]
 
 ### Improved Education
-[If the original education section is already clear and well-formatted, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version, especially if education is relevant to the target position. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
+[IMPORTANT: Do NOT copy the original text verbatim - this makes the tool look broken. Only respond with "No improvement needed" if the original is EXCEPTIONAL (perfectly formatted, highly relevant to target position, and clearly superior to typical resumes). Otherwise, look for ANY opportunity to improve clarity, relevance, or formatting. Keep the improved version similar in length to the original - avoid making it significantly longer, but focus on quality improvements over exact length matching.]
 
 ## 7. ATS COMPATIBILITY ANALYSIS
 Based on the structured data provided, analyze how different ATS systems might interpret my resume:
