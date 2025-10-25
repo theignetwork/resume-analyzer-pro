@@ -410,6 +410,16 @@ const ATSOptimizationReport = () => {
                     Key credentials detected by ATS. Use these insights to strengthen your resume positioning.
                   </p>
 
+                  {/* DEBUG LOGGING */}
+                  {console.log("=== RESUME HIGHLIGHTS DEBUG ===")}
+                  {console.log("Certifications:", structuredData.certifications)}
+                  {console.log("Languages:", structuredData.languages)}
+                  {console.log("Work Experience:", structuredData.workExperience)}
+                  {console.log("Cert length:", structuredData.certifications?.length)}
+                  {console.log("Lang length:", structuredData.languages?.length)}
+                  {console.log("Work length:", structuredData.workExperience?.length)}
+                  {console.log("================================")}
+
                   <div className="space-y-4">
                   {/* Years of Experience */}
                   {structuredData.workExperience?.length > 0 && (
