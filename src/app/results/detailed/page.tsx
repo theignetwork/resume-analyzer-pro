@@ -400,7 +400,147 @@ const ATSOptimizationReport = () => {
             </CardContent>
           </Card>
         </div>
-        
+
+        {/* Resume Highlights - NEW SECTION */}
+        {(structuredData.certifications?.length > 0 ||
+          structuredData.languages?.length > 0 ||
+          structuredData.workExperience?.length > 0) && (
+          <div className="lg:col-span-2">
+            <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl text-white">Resume Highlights</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Key credentials detected by ATS. Use these insights to strengthen your resume positioning.
+                </p>
+
+                <div className="space-y-4">
+                  {/* Years of Experience */}
+                  {structuredData.workExperience?.length > 0 && (() => {
+                    // Calculate years of experience
+                    const experiences = structuredData.workExperience;
+                    let totalMonths = 0;
+
+                    experiences.forEach(exp => {
+                      const startDate = exp.dates?.startDate;
+                      const endDate = exp.dates?.endDate || 'Present';
+
+                      if (startDate) {
+                        const start = new Date(startDate);
+                        const end = endDate === 'Present' ? new Date() : new Date(endDate);
+                        const months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+                        if (months > 0) totalMonths += months;
+                      }
+                    });
+
+                    const years = Math.floor(totalMonths / 12);
+                    const months = totalMonths % 12;
+
+                    return totalMonths > 0 && (
+                      <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="w-4 h-4 text-primary" />
+                          <h4 className="font-semibold text-primary">Total Experience</h4>
+                        </div>
+                        <p className="text-white text-lg">
+                          {years > 0 && `${years} year${years > 1 ? 's' : ''}`}
+                          {years > 0 && months > 0 && ', '}
+                          {months > 0 && `${months} month${months > 1 ? 's' : ''}`}
+                        </p>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Certifications */}
+                  {structuredData.certifications?.length > 0 && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Award className="w-4 h-4 text-primary" />
+                        <h4 className="font-semibold text-primary">Certifications ({structuredData.certifications.length})</h4>
+                      </div>
+                      <ul className="space-y-1">
+                        {structuredData.certifications.slice(0, 5).map((cert, index) => (
+                          <li key={index} className="flex items-start">
+                            <span className="text-primary mr-2">•</span>
+                            <span className="text-white">{cert.name}</span>
+                          </li>
+                        ))}
+                        {structuredData.certifications.length > 5 && (
+                          <li className="text-muted-foreground text-sm">
+                            +{structuredData.certifications.length - 5} more
+                          </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Languages */}
+                  {structuredData.languages?.length > 0 && (
+                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BookOpen className="w-4 h-4 text-primary" />
+                        <h4 className="font-semibold text-primary">Languages ({structuredData.languages.length})</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {structuredData.languages.map((lang, index) => (
+                          <Badge key={index} variant="outline" className="text-white border-primary/50">
+                            {lang.name} {lang.level && `(${lang.level})`}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Smart Tips Section */}
+                  <div className="mt-6 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-md">
+                    <h4 className="font-semibold text-yellow-300 mb-3 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-2" />
+                      How to Use These Highlights
+                    </h4>
+                    <ul className="space-y-2 text-sm text-muted-foreground">
+                      {structuredData.certifications?.length > 0 && (
+                        <li className="flex items-start">
+                          <span className="text-yellow-400 mr-2">•</span>
+                          <span>
+                            <strong className="text-white">Certifications:</strong> Add your most relevant certification to your professional summary.
+                            If the job description mentions specific certifications, highlight those prominently.
+                          </span>
+                        </li>
+                      )}
+                      {structuredData.languages?.length > 0 && (
+                        <li className="flex items-start">
+                          <span className="text-yellow-400 mr-2">•</span>
+                          <span>
+                            <strong className="text-white">Languages:</strong> If the job requires or prefers bilingual candidates,
+                            mention your language skills in your summary section for maximum visibility.
+                          </span>
+                        </li>
+                      )}
+                      {structuredData.workExperience?.length > 0 && (
+                        <li className="flex items-start">
+                          <span className="text-yellow-400 mr-2">•</span>
+                          <span>
+                            <strong className="text-white">Experience Level:</strong> If the job requires "X+ years",
+                            explicitly state your total years in your summary (e.g., "Software Engineer with 5+ years experience").
+                          </span>
+                        </li>
+                      )}
+                      <li className="flex items-start">
+                        <span className="text-yellow-400 mr-2">•</span>
+                        <span>
+                          <strong className="text-white">Positioning Tip:</strong> ATS systems scan for credentials in the first 1/3 of your resume.
+                          Place your strongest qualifications (certifications, years of experience, key skills) in your summary section.
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Formatting Issues - MODIFIED SECTION */}
         <div className="lg:col-span-3">
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
