@@ -410,29 +410,22 @@ const ATSOptimizationReport = () => {
                     Key credentials detected by ATS. Use these insights to strengthen your resume positioning.
                   </p>
 
-                  {/* DEBUG LOGGING */}
-                  {console.log("=== RESUME HIGHLIGHTS DEBUG ===")}
-                  {console.log("Certifications:", structuredData.certifications)}
-                  {console.log("Languages:", structuredData.languages)}
-                  {console.log("Work Experience:", structuredData.workExperience)}
-                  {console.log("Cert length:", structuredData.certifications?.length)}
-                  {console.log("Lang length:", structuredData.languages?.length)}
-                  {console.log("Work length:", structuredData.workExperience?.length)}
-                  {console.log("================================")}
-
                   <div className="space-y-4">
-                  {/* Years of Experience */}
-                  {structuredData.workExperience?.length > 0 && (
-                    <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock className="w-4 h-4 text-primary" />
-                        <h4 className="font-semibold text-primary">Work Experience</h4>
+                    {/* Work Experience */}
+                    {structuredData.workExperience?.length > 0 && (
+                      <div className="p-3 bg-primary/10 border border-primary/30 rounded-md">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Clock className="w-4 h-4 text-primary" />
+                          <h4 className="font-semibold text-primary">Work Experience</h4>
+                        </div>
+                        <p className="text-white text-lg">
+                          {structuredData.workExperience.length} position{structuredData.workExperience.length > 1 ? 's' : ''} detected
+                        </p>
+                        <p className="text-muted-foreground text-sm mt-1">
+                          ATS successfully parsed your work history
+                        </p>
                       </div>
-                      <p className="text-white">
-                        {structuredData.workExperience.length} position{structuredData.workExperience.length > 1 ? 's' : ''} found
-                      </p>
-                    </div>
-                  )}
+                    )}
 
                   {/* Years of Experience - COMMENTED OUT FOR NOW
                   {structuredData.workExperience?.length > 0 && (() => {
@@ -511,48 +504,49 @@ const ATSOptimizationReport = () => {
                     </div>
                   )}
 
-                  {/* Smart Tips Section */}
-                  <div className="mt-6 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-md">
-                    <h4 className="font-semibold text-yellow-300 mb-3 flex items-center">
-                      <AlertCircle className="w-4 h-4 mr-2" />
-                      How to Use These Highlights
-                    </h4>
-                    <ul className="space-y-2 text-sm text-muted-foreground">
-                      {structuredData.certifications?.length > 0 && (
+                    {/* Smart Tips Section */}
+                    <div className="mt-4 p-4 bg-yellow-900/20 border border-yellow-900/50 rounded-md">
+                      <h4 className="font-semibold text-yellow-300 mb-3 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        How to Use These Highlights
+                      </h4>
+                      <ul className="space-y-2 text-sm text-muted-foreground">
+                        {structuredData.certifications?.length > 0 && (
+                          <li className="flex items-start">
+                            <span className="text-yellow-400 mr-2">•</span>
+                            <span>
+                              <strong className="text-white">Certifications:</strong> Add your most relevant certification to your professional summary.
+                              If the job description mentions specific certifications, highlight those prominently.
+                            </span>
+                          </li>
+                        )}
+                        {structuredData.languages?.length > 0 && (
+                          <li className="flex items-start">
+                            <span className="text-yellow-400 mr-2">•</span>
+                            <span>
+                              <strong className="text-white">Languages:</strong> If the job requires or prefers bilingual candidates,
+                              mention your language skills in your summary section for maximum visibility.
+                            </span>
+                          </li>
+                        )}
+                        {structuredData.workExperience?.length > 0 && (
+                          <li className="flex items-start">
+                            <span className="text-yellow-400 mr-2">•</span>
+                            <span>
+                              <strong className="text-white">Experience Level:</strong> If the job requires "X+ years",
+                              explicitly state your total years in your summary (e.g., "Software Engineer with 5+ years experience").
+                            </span>
+                          </li>
+                        )}
                         <li className="flex items-start">
                           <span className="text-yellow-400 mr-2">•</span>
                           <span>
-                            <strong className="text-white">Certifications:</strong> Add your most relevant certification to your professional summary.
-                            If the job description mentions specific certifications, highlight those prominently.
+                            <strong className="text-white">Positioning Tip:</strong> ATS systems scan for credentials in the first 1/3 of your resume.
+                            Place your strongest qualifications in your summary section.
                           </span>
                         </li>
-                      )}
-                      {structuredData.languages?.length > 0 && (
-                        <li className="flex items-start">
-                          <span className="text-yellow-400 mr-2">•</span>
-                          <span>
-                            <strong className="text-white">Languages:</strong> If the job requires or prefers bilingual candidates,
-                            mention your language skills in your summary section for maximum visibility.
-                          </span>
-                        </li>
-                      )}
-                      {structuredData.workExperience?.length > 0 && (
-                        <li className="flex items-start">
-                          <span className="text-yellow-400 mr-2">•</span>
-                          <span>
-                            <strong className="text-white">Experience Level:</strong> If the job requires "X+ years",
-                            explicitly state your total years in your summary (e.g., "Software Engineer with 5+ years experience").
-                          </span>
-                        </li>
-                      )}
-                      <li className="flex items-start">
-                        <span className="text-yellow-400 mr-2">•</span>
-                        <span>
-                          <strong className="text-white">Positioning Tip:</strong> ATS systems scan for credentials in the first 1/3 of your resume.
-                          Place your strongest qualifications (certifications, years of experience, key skills) in your summary section.
-                        </span>
-                      </li>
-                    </ul>
+                      </ul>
+                    </div>
                   </div>
                 </div>
                 </>
