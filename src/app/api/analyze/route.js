@@ -243,25 +243,25 @@ For each section below, copy the exact text from my resume then provide an impro
 [Copy the exact summary/profile text from my resume]
 
 ### Improved Summary
-[Your improved version that incorporates keywords, better structure, and stronger content]
+[If the original summary is already well-written, clear, and ATS-optimized, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that incorporates keywords, better structure, and stronger content. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
 
 ### Original Experience
 [Copy the exact experience section text from my resume]
 
 ### Improved Experience
-[Your improved version that quantifies achievements, incorporates keywords, and highlights relevant skills]
+[If the original experience section is already well-written, clear, and ATS-optimized, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that quantifies achievements, incorporates keywords, and highlights relevant skills. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
 
 ### Original Skills
 [Copy the exact skills section text from my resume]
 
 ### Improved Skills
-[Your improved version that better organizes skills and incorporates missing keywords]
+[If the original skills section is already well-organized and includes relevant keywords, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version that better organizes skills and incorporates missing keywords. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
 
 ### Original Education
 [Copy the exact education section text from my resume]
 
 ### Improved Education
-[Your improved version, especially if education is relevant to the target position]
+[If the original education section is already clear and well-formatted, respond with "No improvement needed" instead of repeating it. Otherwise, provide your improved version, especially if education is relevant to the target position. IMPORTANT: Keep the improved version roughly the same length as the original - do not significantly expand it.]
 
 ## 7. ATS COMPATIBILITY ANALYSIS
 Based on the structured data provided, analyze how different ATS systems might interpret my resume:
