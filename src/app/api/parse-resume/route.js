@@ -86,8 +86,17 @@ export async function POST(request) {
     };
 
     // Add debug logging to verify the fix
+    console.log("=== AFFINDA DATA DEBUG ===");
     console.log("Skills found in Affinda data:", parsedData.data?.skill?.length || 0);
     console.log("Skills after transformation:", transformedData.data?.skills?.length || 0);
+    console.log("Work Experience in parsedData:", parsedData.data?.workExperience?.length || 0);
+    console.log("Certifications in parsedData:", parsedData.data?.certifications?.length || 0);
+    console.log("Languages in parsedData:", parsedData.data?.languages?.length || 0);
+    console.log("All Affinda data keys:", Object.keys(parsedData.data || {}));
+    if (parsedData.data?.workExperience?.[0]) {
+      console.log("Sample work experience object:", JSON.stringify(parsedData.data.workExperience[0], null, 2));
+    }
+    console.log("========================");
 
     const documentType = parsedData.meta?.documentType || 'unknown';
     const { error: updateError } = await supabase.from('resumes').update({
