@@ -102,23 +102,31 @@ export async function POST(request) {
           }
           console.log("=============================================");
 
-          structuredData.workExperience = data.workExperience.map(job => ({
-            jobTitle: job.jobTitle?.raw || "",
-            organization: job.organization?.raw || "",
-            location: job.location?.raw || "",
-            dates: {
-              startDate: job.dates?.startDate?.raw || "",
-              endDate: job.dates?.endDate?.raw || ""
-            },
-            description: job.description || "",
-            responsibilities: Array.isArray(job.responsibilities)
-              ? job.responsibilities.map(r => r.raw || r).join("\n")
-              : job.responsibilities || "",
-            achievements: Array.isArray(job.achievements)
-              ? job.achievements.map(a => a.raw || a).join("\n")
-              : job.achievements || "",
-            confidence: job.confidence || 0
-          }));
+          structuredData.workExperience = data.workExperience.map(job => {
+            // Try multiple possible field structures (defensive approach)
+            const jobTitle = job.jobTitle?.raw || job.jobTitle || job.title?.raw || job.title || "";
+            const organization = job.organization?.raw || job.organization || job.company?.raw || job.company || "";
+            const location = job.location?.raw || job.location || "";
+            const startDate = job.dates?.startDate?.raw || job.dates?.startDate || job.startDate?.raw || job.startDate || "";
+            const endDate = job.dates?.endDate?.raw || job.dates?.endDate || job.endDate?.raw || job.endDate || "";
+
+            console.log(`Extracted: "${jobTitle}" at "${organization}" (${startDate} - ${endDate})`);
+
+            return {
+              jobTitle,
+              organization,
+              location,
+              dates: { startDate, endDate },
+              description: job.description || "",
+              responsibilities: Array.isArray(job.responsibilities)
+                ? job.responsibilities.map(r => r.raw || r).join("\n")
+                : job.responsibilities || "",
+              achievements: Array.isArray(job.achievements)
+                ? job.achievements.map(a => a.raw || a).join("\n")
+                : job.achievements || "",
+              confidence: job.confidence || 0
+            };
+          });
           const scores = data.workExperience.map(j => j.confidence).filter(Number);
           if (scores.length) {
             confidenceScores.sections.workExperience = scores.reduce((a, b) => a + b, 0) / scores.length;
