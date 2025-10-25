@@ -50,6 +50,12 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Resume has no extracted text' }, { status: 400 });
     }
 
+    // DEBUG: Check what resume_text actually contains
+    console.log("=== RESUME TEXT DEBUG ===");
+    console.log("Resume text length:", resume.resume_text.length);
+    console.log("First 500 characters:", resume.resume_text.substring(0, 500));
+    console.log("========================");
+
     const structuredData = {
       summary: "",
       skills: [],
