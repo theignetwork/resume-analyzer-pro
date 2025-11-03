@@ -452,11 +452,15 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
       // Continue with default data
     }
 
+    // Get user_id from resume record to associate with analysis
+    const resumeUserId = resume.wp_user_id;
+
     // Insert analysis into database with robust error handling
     try {
       console.log("Saving analysis to database...");
       const insertData = {
         resume_id: resumeId,
+        wp_user_id: resumeUserId,
         raw_analysis: analysisText,
         overall_score: overallScore,
         ats_score: atsScore,
@@ -509,9 +513,64 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
       }
       
       console.log("✅ Analysis saved successfully with ID:", result.id);
-      
-      return NextResponse.json({ 
-        success: true, 
+
+      // Update session with new score if resume is part of a session
+      if (resume.session_id) {
+        try {
+          console.log("Updating session scores for session:", resume.session_id);
+
+          // Fetch current session data
+          const { data: session, error: sessionFetchError } = await supabase
+            .from('analysis_sessions')
+            .select('score_history, best_score')
+            .eq('id', resume.session_id)
+            .single();
+
+          if (!sessionFetchError && session) {
+            // Add new score to history
+            const newScoreEntry = {
+              version: resume.version_number || 1,
+              score: overallScore,
+              ats_score: atsScore,
+              content_score: contentScore,
+              analyzed_at: new Date().toISOString()
+            };
+
+            const updatedScoreHistory = [
+              ...(session.score_history || []),
+              newScoreEntry
+            ];
+
+            // Calculate new best score
+            const newBestScore = Math.max(
+              session.best_score || 0,
+              overallScore
+            );
+
+            // Update session
+            const { error: sessionUpdateError } = await supabase
+              .from('analysis_sessions')
+              .update({
+                latest_score: overallScore,
+                best_score: newBestScore,
+                score_history: updatedScoreHistory
+              })
+              .eq('id', resume.session_id);
+
+            if (sessionUpdateError) {
+              console.error("⚠️ Error updating session scores:", sessionUpdateError);
+            } else {
+              console.log("✅ Session scores updated successfully");
+            }
+          }
+        } catch (sessionError) {
+          console.error("⚠️ Error in session score update:", sessionError);
+          // Don't fail the analysis if session update fails
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
         analysisId: result.id,
         message: 'Analysis completed successfully'
       });

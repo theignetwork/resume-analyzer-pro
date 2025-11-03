@@ -1,17 +1,22 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import ResultsNavTabs from './ResultsNavTabs';
 import ResumeSummaryCard from '@/components/ui/ResumeSummaryCard';
 import SaveAnalysisButton from '@/components/ui/SaveAnalysisButton';
-import KeywordDisplay from '@/components/ui/KeywordDisplay'; // Add this import for the KeywordDisplay component
+import KeywordDisplay from '@/components/ui/KeywordDisplay';
+import VersionHistory from '@/components/VersionHistory';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 export default function ResultsPage() {
   const router = useRouter();
   const [analysis, setAnalysis] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [session, setSession] = useState(null);
   
   useEffect(() => {
     const fetchAnalysis = async () => {
@@ -32,15 +37,27 @@ export default function ResultsPage() {
               job_title,
               job_description,
               file_name,
-              file_url
+              file_url,
+              session_id,
+              version_number
             )
           `)
           .eq('id', analysisId)
           .single();
-          
+
         if (error) throw error;
-        
+
         setAnalysis(data);
+
+        // Fetch session data if resume is part of a session
+        if (data?.resume?.session_id) {
+          const sessionResponse = await fetch(`/api/sessions/${data.resume.session_id}`);
+          const sessionData = await sessionResponse.json();
+
+          if (sessionData.session) {
+            setSession(sessionData.session);
+          }
+        }
       } catch (err) {
         console.error('Error fetching analysis:', err);
         setError('Failed to load analysis results. Please try again.');
@@ -48,7 +65,7 @@ export default function ResultsPage() {
         setLoading(false);
       }
     };
-    
+
     fetchAnalysis();
   }, []);
   
@@ -203,6 +220,38 @@ export default function ResultsPage() {
               </p>
             )}
           </div>
+
+          {/* Version History - Show if part of a session */}
+          {session && session.score_history && session.score_history.length > 0 && (
+            <div className="mt-12">
+              <VersionHistory
+                scoreHistory={session.score_history}
+                currentVersion={analysis?.resume?.version_number || 1}
+              />
+            </div>
+          )}
+
+          {/* Upload Improved Version Button */}
+          {session && (
+            <div className="mt-8 p-6 bg-gradient-to-r from-green-500/10 to-teal-500/10 border-2 border-green-500/30 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <h3 className="text-white font-bold text-lg mb-1">
+                    Ready to improve your score?
+                  </h3>
+                  <p className="text-green-200/70 text-sm">
+                    Upload an improved version based on these suggestions. Your job description will be pre-filled.
+                  </p>
+                </div>
+                <Link href="/upload">
+                  <Button className="bg-green-600 hover:bg-green-700 text-white">
+                    <RefreshCw size={16} className="mr-2" />
+                    Upload Improved Version
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

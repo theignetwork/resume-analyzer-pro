@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import Layout from "./layout_component"; // Import the custom layout
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +20,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Layout>{children}</Layout> {/* Use the custom Layout component */}
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p className="text-primary">Loading...</p></div>}>
+          <AuthProvider>
+            <Layout>{children}</Layout>
+          </AuthProvider>
+        </Suspense>
       </body>
     </html>
   );

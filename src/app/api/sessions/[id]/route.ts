@@ -1,0 +1,99 @@
+import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase';
+
+// GET /api/sessions/[id] - Get specific session
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { data: session, error } = await supabase
+      .from('analysis_sessions')
+      .select(`
+        *,
+        resumes(id, version_number, file_name, created_at, analyses(overall_score))
+      `)
+      .eq('id', params.id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching session:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ session });
+
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// PUT /api/sessions/[id] - Update session
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const body = await request.json();
+    const updates: any = {};
+
+    // Allow updating specific fields
+    if (body.total_uploads !== undefined) updates.total_uploads = body.total_uploads;
+    if (body.latest_score !== undefined) updates.latest_score = body.latest_score;
+    if (body.best_score !== undefined) updates.best_score = body.best_score;
+    if (body.score_history !== undefined) updates.score_history = body.score_history;
+    if (body.last_upload_at !== undefined) updates.last_upload_at = body.last_upload_at;
+    if (body.is_active !== undefined) updates.is_active = body.is_active;
+
+    // updated_at is handled by trigger
+
+    const { data: session, error } = await supabase
+      .from('analysis_sessions')
+      .update(updates)
+      .eq('id', params.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating session:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ session });
+
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+// DELETE /api/sessions/[id] - Mark session as inactive
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { data: session, error } = await supabase
+      .from('analysis_sessions')
+      .update({ is_active: false })
+      .eq('id', params.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error deleting session:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ session, message: 'Session marked as inactive' });
+
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
