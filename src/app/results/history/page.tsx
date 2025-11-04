@@ -1,10 +1,11 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import ResultsNavTabs from '../ResultsNavTabs';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Clock, ChevronRight, Trash2 } from 'lucide-react';
+import { Clock, ChevronRight, Trash2, RefreshCw } from 'lucide-react';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -54,8 +55,16 @@ export default function HistoryPage() {
       <ResultsNavTabs activeTab="history" />
       
       <div className="w-full max-w-4xl mx-auto">
-        <h2 className="text-2xl font-bold text-white mb-6 text-left">Your Saved Analyses</h2>
-        
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-white text-left">Your Saved Analyses</h2>
+          <Link href="/upload">
+            <Button className="bg-green-600 hover:bg-green-700 text-white">
+              <RefreshCw size={16} className="mr-2" />
+              Analyze New Resume
+            </Button>
+          </Link>
+        </div>
+
         {savedAnalyses.length === 0 ? (
           <Card className="bg-card/50 backdrop-blur-sm border-primary/20">
             <CardContent className="p-8 text-center">
