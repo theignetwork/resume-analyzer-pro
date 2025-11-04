@@ -41,21 +41,33 @@ const UploadPage = () => {
   // Fetch user's active sessions when authenticated
   useEffect(() => {
     const fetchSessions = async () => {
-      if (!user?.user_id) return;
+      console.log('[Upload] User state:', user);
 
+      if (!user?.user_id) {
+        console.log('[Upload] No user_id found, skipping session fetch');
+        return;
+      }
+
+      console.log('[Upload] Fetching sessions for user:', user.user_id);
       setSessionsLoading(true);
       try {
-        const response = await fetch(
-          `/api/sessions?wp_user_id=${user.user_id}&active_only=true`
-        );
+        const url = `/api/sessions?wp_user_id=${user.user_id}&active_only=true`;
+        console.log('[Upload] Fetching from:', url);
+
+        const response = await fetch(url);
         const data = await response.json();
 
+        console.log('[Upload] Sessions response:', data);
+
         if (data.sessions && data.sessions.length > 0) {
+          console.log('[Upload] Found sessions:', data.sessions.length);
           setSessions(data.sessions);
           setShowSessionBanner(true);
+        } else {
+          console.log('[Upload] No sessions found');
         }
       } catch (err) {
-        console.error('Error fetching sessions:', err);
+        console.error('[Upload] Error fetching sessions:', err);
       } finally {
         setSessionsLoading(false);
       }
@@ -139,6 +151,10 @@ const UploadPage = () => {
       setLoading(true);
       setError('');
 
+      console.log('[Submit] Starting submission...');
+      console.log('[Submit] User:', user);
+      console.log('[Submit] Selected session:', selectedSession);
+
       let sessionId = selectedSession?.id;
       let versionNumber = 1;
 
@@ -146,7 +162,7 @@ const UploadPage = () => {
       if (selectedSession) {
         // Continuing existing session
         versionNumber = selectedSession.total_uploads + 1;
-        console.log(`Continuing session ${sessionId}, version ${versionNumber}`);
+        console.log(`[Submit] Continuing session ${sessionId}, version ${versionNumber}`);
 
         // Update session
         await fetch(`/api/sessions/${sessionId}`, {
@@ -159,21 +175,27 @@ const UploadPage = () => {
         });
       } else if (user?.user_id) {
         // Create new session
-        console.log('Creating new session...');
+        console.log('[Submit] Creating new session for user:', user.user_id);
+        const sessionPayload = {
+          wp_user_id: user.user_id,
+          job_title: jobTitle,
+          job_description: jobDescription,
+          company_name: '' // Could extract from job title/description
+        };
+        console.log('[Submit] Session payload:', sessionPayload);
+
         const sessionResponse = await fetch('/api/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            wp_user_id: user.user_id,
-            job_title: jobTitle,
-            job_description: jobDescription,
-            company_name: '' // Could extract from job title/description
-          })
+          body: JSON.stringify(sessionPayload)
         });
 
         const sessionData = await sessionResponse.json();
+        console.log('[Submit] Session response:', sessionData);
         sessionId = sessionData.session?.id;
-        console.log('New session created:', sessionId);
+        console.log('[Submit] New session created:', sessionId);
+      } else {
+        console.log('[Submit] No user authenticated, skipping session creation');
       }
 
       // 1. Upload PDF to Supabase Storage
