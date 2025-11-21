@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
 import { getUserFromRequest } from '@/lib/auth';
+import { analyzeLimit, checkRateLimit } from '@/lib/rateLimit';
 
 // Debug: Check if API key is loaded
 console.log("🔑 ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
@@ -32,6 +33,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
     }
     console.log(`[analyze] Authenticated request from user ${user.user_id}`);
+
+    // Rate limit check (10 requests per hour)
+    const rateLimitResult = await checkRateLimit(
+      analyzeLimit,
+      `user_${user.user_id}`,
+      'resume analysis',
+      10
+    );
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
 
     console.log("🔍 API route called - /api/analyze");
 

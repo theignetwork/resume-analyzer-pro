@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
+import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
 
 const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 const AFFINDA_WORKSPACE_ID = process.env.AFFINDA_WORKSPACE_ID;
@@ -14,6 +15,17 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
     }
     console.log(`[parse-resume] Authenticated request from user ${user.user_id}`);
+
+    // Rate limit check (5 requests per hour)
+    const rateLimitResult = await checkRateLimit(
+      parseResumeLimit,
+      `user_${user.user_id}`,
+      'resume parsing',
+      5
+    );
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
 
     if (!AFFINDA_API_KEY || !AFFINDA_WORKSPACE_ID) {
       console.error("Affinda configuration error");

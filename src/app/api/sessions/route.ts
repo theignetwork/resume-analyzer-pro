@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import { getUserIdFromRequest } from '@/lib/auth';
+import { readSessionLimit, createSessionLimit, checkRateLimit } from '@/lib/rateLimit';
 
 // GET /api/sessions - Get user's sessions
 export async function GET(request: Request) {
@@ -12,6 +13,17 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
     }
     console.log(`[sessions] Authenticated GET request from user ${userId}`);
+
+    // Rate limit check (100 requests per hour for reads)
+    const rateLimitResult = await checkRateLimit(
+      readSessionLimit,
+      `user_${userId}`,
+      'session reads',
+      100
+    );
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
 
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active_only') === 'true';
@@ -52,6 +64,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
     }
     console.log(`[sessions] Authenticated POST request from user ${userId}`);
+
+    // Rate limit check (20 requests per hour for creates)
+    const rateLimitResult = await checkRateLimit(
+      createSessionLimit,
+      `user_${userId}`,
+      'session creation',
+      20
+    );
+    if (!rateLimitResult.success) {
+      return rateLimitResult.response;
+    }
 
     const body = await request.json();
     const { job_title, job_description, company_name } = body;
