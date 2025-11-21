@@ -1,20 +1,11 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
-import { getUserFromRequest } from '@/lib/auth';
 
 const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
 const AFFINDA_WORKSPACE_ID = process.env.AFFINDA_WORKSPACE_ID;
 
 export async function POST(request) {
   try {
-    // Authentication check
-    const user = await getUserFromRequest(request);
-    if (!user) {
-      console.log('[parse-resume] Unauthorized request');
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
-    }
-    console.log(`[parse-resume] Authenticated request from user ${user.user_id}`);
-
     if (!AFFINDA_API_KEY || !AFFINDA_WORKSPACE_ID) {
       console.error("Affinda configuration error");
       return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
@@ -26,12 +17,6 @@ export async function POST(request) {
     const { data: resume, error: resumeError } = await supabase.from('resumes').select('*').eq('id', resumeId).single();
     if (resumeError || !resume?.file_url) {
       return NextResponse.json({ error: resumeError?.message || 'Resume has no file_url' }, { status: 404 });
-    }
-
-    // Verify user owns this resume
-    if (resume.wp_user_id !== user.user_id) {
-      console.log(`[parse-resume] User ${user.user_id} attempted to access resume owned by ${resume.wp_user_id}`);
-      return NextResponse.json({ error: 'Unauthorized - Resume does not belong to you' }, { status: 403 });
     }
 
     const requestBody = {

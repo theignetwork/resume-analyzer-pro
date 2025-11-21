@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import { authenticatedPost } from '@/lib/authenticatedFetch';
 
 export default function AnalyzingPage() {
   const router = useRouter();
@@ -25,11 +26,7 @@ export default function AnalyzingPage() {
       
       // Step 1: Parse the resume with Affinda
       console.log("Parsing resume with Affinda, ID:", resumeId);
-      const parseResponse = await fetch('/api/parse-resume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeId })
-      });
+      const parseResponse = await authenticatedPost('/api/parse-resume', { resumeId });
       
       if (!parseResponse.ok) {
         const errorData = await parseResponse.json();
@@ -44,11 +41,7 @@ export default function AnalyzingPage() {
       
       // Step 2: Analyze the parsed resume
       console.log("Calling analyze API with resumeId:", resumeId);
-      const analyzeResponse = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeId })
-      });
+      const analyzeResponse = await authenticatedPost('/api/analyze', { resumeId });
       
       if (!analyzeResponse.ok) {
         const errorData = await analyzeResponse.json();

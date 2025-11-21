@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 import Anthropic from '@anthropic-ai/sdk';
-import { getUserFromRequest } from '@/lib/auth';
 
 // Debug: Check if API key is loaded
 console.log("🔑 ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
@@ -25,14 +24,6 @@ const anthropic = new Anthropic({
 
 export async function POST(request) {
   try {
-    // Authentication check
-    const user = await getUserFromRequest(request);
-    if (!user) {
-      console.log('[analyze] Unauthorized request');
-      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
-    }
-    console.log(`[analyze] Authenticated request from user ${user.user_id}`);
-
     console.log("🔍 API route called - /api/analyze");
 
     const body = await request.json();
@@ -54,12 +45,6 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Resume not found' }, { status: 404 });
     }
 
-    // Verify user owns this resume
-    if (resume.wp_user_id !== user.user_id) {
-      console.log(`[analyze] User ${user.user_id} attempted to access resume owned by ${resume.wp_user_id}`);
-      return NextResponse.json({ error: 'Unauthorized - Resume does not belong to you' }, { status: 403 });
-    }
-
     if (!resume.resume_text) {
       console.error("❌ Resume has no extracted text");
       return NextResponse.json({ error: 'Resume has no extracted text' }, { status: 400 });
@@ -72,7 +57,6 @@ export async function POST(request) {
     console.log("========================");
 
     const structuredData = {
-      summary: "",
       summary: "",
       skills: [],
       workExperience: [],

@@ -10,6 +10,7 @@ import KeywordDisplay from '@/components/ui/KeywordDisplay';
 import VersionHistory from '@/components/VersionHistory';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/authenticatedFetch';
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -51,7 +52,7 @@ export default function ResultsPage() {
 
         // Fetch session data if resume is part of a session
         if (data?.resume?.session_id) {
-          const sessionResponse = await fetch(`/api/sessions/${data.resume.session_id}`);
+          const sessionResponse = await authenticatedFetch(`/api/sessions/${data.resume.session_id}`);
           const sessionData = await sessionResponse.json();
 
           if (sessionData.session) {

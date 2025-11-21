@@ -1,21 +1,26 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 // GET /api/sessions - Get user's sessions
 export async function GET(request: Request) {
   try {
+    // Authentication check
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      console.log('[sessions] Unauthorized GET request');
+      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
+    }
+    console.log(`[sessions] Authenticated GET request from user ${userId}`);
+
     const { searchParams } = new URL(request.url);
-    const wpUserId = searchParams.get('wp_user_id');
     const activeOnly = searchParams.get('active_only') === 'true';
 
-    if (!wpUserId) {
-      return NextResponse.json({ error: 'wp_user_id required' }, { status: 400 });
-    }
-
+    // Use authenticated userId instead of query param!
     let query = supabase
       .from('analysis_sessions')
       .select('*')
-      .eq('wp_user_id', parseInt(wpUserId))
+      .eq('wp_user_id', userId)
       .order('updated_at', { ascending: false });
 
     if (activeOnly) {
@@ -40,12 +45,20 @@ export async function GET(request: Request) {
 // POST /api/sessions - Create new session
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { wp_user_id, job_title, job_description, company_name } = body;
+    // Authentication check
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      console.log('[sessions] Unauthorized POST request');
+      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
+    }
+    console.log(`[sessions] Authenticated POST request from user ${userId}`);
 
-    if (!wp_user_id || !job_title) {
+    const body = await request.json();
+    const { job_title, job_description, company_name } = body;
+
+    if (!job_title) {
       return NextResponse.json(
-        { error: 'wp_user_id and job_title are required' },
+        { error: 'job_title is required' },
         { status: 400 }
       );
     }
@@ -55,10 +68,11 @@ export async function POST(request: Request) {
       ? `${job_title} at ${company_name}`
       : job_title;
 
+    // Use authenticated userId instead of body param!
     const { data: session, error } = await supabase
       .from('analysis_sessions')
       .insert({
-        wp_user_id: parseInt(wp_user_id),
+        wp_user_id: userId,
         job_title,
         job_description,
         company_name,

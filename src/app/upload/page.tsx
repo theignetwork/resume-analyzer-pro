@@ -9,6 +9,7 @@ import { UploadCloud, CheckCircle, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import SessionBanner from '@/components/SessionBanner';
+import { authenticatedPost, authenticatedFetch } from '@/lib/authenticatedFetch';
 
 interface Session {
   id: string;
@@ -165,7 +166,7 @@ const UploadPage = () => {
         console.log(`[Submit] Continuing session ${sessionId}, version ${versionNumber}`);
 
         // Update session
-        await fetch(`/api/sessions/${sessionId}`, {
+        await authenticatedFetch(`/api/sessions/${sessionId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -184,10 +185,6 @@ const UploadPage = () => {
         };
         console.log('[Submit] Session payload:', sessionPayload);
 
-        const sessionResponse = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sessionPayload)
         });
 
         const sessionData = await sessionResponse.json();

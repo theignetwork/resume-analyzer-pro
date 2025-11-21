@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
+import { getUserIdFromRequest } from '@/lib/auth';
 
 // GET /api/sessions/[id] - Get specific session
 export async function GET(
@@ -7,6 +8,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      console.log('[sessions/id] Unauthorized GET request');
+      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
+    }
+
     const { data: session, error } = await supabase
       .from('analysis_sessions')
       .select(`
@@ -25,6 +33,12 @@ export async function GET(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    // Verify user owns this session
+    if (session.wp_user_id !== userId) {
+      console.log(`[sessions/id] User ${userId} attempted to access session owned by ${session.wp_user_id}`);
+      return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
+    }
+
     return NextResponse.json({ session });
 
   } catch (error) {
@@ -39,6 +53,30 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      console.log('[sessions/id] Unauthorized PUT request');
+      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
+    }
+
+    // First verify the session exists and user owns it
+    const { data: existingSession } = await supabase
+      .from('analysis_sessions')
+      .select('wp_user_id')
+      .eq('id', params.id)
+      .single();
+
+    if (!existingSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    // Verify user owns this session
+    if (existingSession.wp_user_id !== userId) {
+      console.log(`[sessions/id] User ${userId} attempted to update session owned by ${existingSession.wp_user_id}`);
+      return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
+    }
+
     const body = await request.json();
     const updates: any = {};
 
@@ -78,6 +116,30 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Authentication check
+    const userId = await getUserIdFromRequest(request);
+    if (!userId) {
+      console.log('[sessions/id] Unauthorized DELETE request');
+      return NextResponse.json({ error: 'Unauthorized - Please log in' }, { status: 401 });
+    }
+
+    // First verify the session exists and user owns it
+    const { data: existingSession } = await supabase
+      .from('analysis_sessions')
+      .select('wp_user_id')
+      .eq('id', params.id)
+      .single();
+
+    if (!existingSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    // Verify user owns this session
+    if (existingSession.wp_user_id !== userId) {
+      console.log(`[sessions/id] User ${userId} attempted to delete session owned by ${existingSession.wp_user_id}`);
+      return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
+    }
+
     const { data: session, error } = await supabase
       .from('analysis_sessions')
       .update({ is_active: false })
