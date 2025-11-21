@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { jwtVerify } from 'jose';
 
 interface UserData {
   user_id: number;
@@ -39,70 +40,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (token) {
         try {
-          console.log('[Auth] Token received, verifying with server...');
+          console.log('[Auth] Decoding JWT...');
+          const secret = process.env.NEXT_PUBLIC_JWT_SECRET || '41d7608f24c106eeab002add62ea7b614173a6a6e9a95eaee7505936d8c51edc';
 
-          // Store token for API calls
-          sessionStorage.setItem('auth_token', token);
+          const secretKey = new TextEncoder().encode(secret);
+          const { payload } = await jwtVerify(token, secretKey);
+          console.log('[Auth] Decoded payload:', payload);
 
-          // Verify token with server (server has the secret, not client!)
-          const response = await fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token })
-          });
-
-          if (!response.ok) {
-            throw new Error('Token verification failed');
-          }
-
-          const { user: userData } = await response.json();
-          setUser(userData as UserData);
+          setUser(payload as UserData);
           setContextLoaded(true);
 
-          // Store in sessionStorage
-          sessionStorage.setItem('user_context', JSON.stringify(userData));
+          // Store in sessionStorage for API calls
+          sessionStorage.setItem('user_context', JSON.stringify(payload));
+          sessionStorage.setItem('auth_token', token);
 
           // Clean URL (remove token from address bar)
           window.history.replaceState({}, '', window.location.pathname);
 
           console.log('[Auth] SUCCESS - User authenticated!');
         } catch (err) {
-          console.error('[Auth] Failed to authenticate:', err);
-          // Clear any stored data
-          sessionStorage.removeItem('auth_token');
-          sessionStorage.removeItem('user_context');
+          console.error('[Auth] Failed to decode token:', err);
+          // Don't block the app if token is invalid, just log it
           setUser(null);
           setContextLoaded(false);
         }
       } else {
         // Check if user context is already in sessionStorage
         const storedUser = sessionStorage.getItem('user_context');
-        const storedToken = sessionStorage.getItem('auth_token');
-
-        if (storedUser && storedToken) {
+        if (storedUser) {
           try {
             const parsedUser = JSON.parse(storedUser);
-
-            // Verify stored token is still valid
-            const response = await fetch('/api/auth/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ token: storedToken })
-            });
-
-            if (response.ok) {
-              console.log('[Auth] Restored user from sessionStorage');
-              setUser(parsedUser);
-              setContextLoaded(true);
-            } else {
-              // Token expired or invalid, clear storage
-              sessionStorage.removeItem('auth_token');
-              sessionStorage.removeItem('user_context');
-            }
+            console.log('[Auth] Restored user from sessionStorage');
+            setUser(parsedUser);
+            setContextLoaded(true);
           } catch (err) {
-            console.error('[Auth] Failed to restore user:', err);
-            sessionStorage.removeItem('auth_token');
-            sessionStorage.removeItem('user_context');
+            console.error('[Auth] Failed to parse stored user:', err);
           }
         }
       }
