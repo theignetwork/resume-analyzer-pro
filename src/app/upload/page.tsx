@@ -185,7 +185,7 @@ const UploadPage = () => {
         };
         console.log('[Submit] Session payload:', sessionPayload);
 
-        });
+        const sessionResponse = await authenticatedPost('/api/sessions', sessionPayload);
 
         const sessionData = await sessionResponse.json();
         console.log('[Submit] Session response:', sessionData);
