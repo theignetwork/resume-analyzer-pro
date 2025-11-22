@@ -41,10 +41,16 @@ export async function POST(request) {
     }
 
     // Verify user owns this resume
+    console.log("[parse-resume] Resume wp_user_id:", resume.wp_user_id, "type:", typeof resume.wp_user_id);
+    console.log("[parse-resume] JWT user_id:", user.user_id, "type:", typeof user.user_id);
+    console.log("[parse-resume] String comparison:", String(resume.wp_user_id), "vs", String(user.user_id));
+
     if (String(resume.wp_user_id) !== String(user.user_id)) {
-      console.log(`[parse-resume] User ${user.user_id} attempted to access resume owned by ${resume.wp_user_id}`);
-      return NextResponse.json({ error: 'Unauthorized - Resume does not belong to you' }, { status: 403 });
+      console.error("[parse-resume] MISMATCH - User", user.user_id, "tried to access resume owned by", resume.wp_user_id);
+      return NextResponse.json({ error: "Unauthorized - Resume does not belong to you" }, { status: 403 });
     }
+
+    console.log("[parse-resume] Ownership verified for user", user.user_id);
 
     const requestBody = {
       url: resume.file_url,
