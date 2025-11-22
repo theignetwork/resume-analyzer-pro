@@ -41,7 +41,7 @@ export async function POST(request) {
     }
 
     // Verify user owns this resume
-    if (resume.wp_user_id !== user.user_id) {
+    if (String(resume.wp_user_id) !== String(user.user_id)) {
       console.log(`[parse-resume] User ${user.user_id} attempted to access resume owned by ${resume.wp_user_id}`);
       return NextResponse.json({ error: 'Unauthorized - Resume does not belong to you' }, { status: 403 });
     }

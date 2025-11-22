@@ -34,7 +34,7 @@ export async function GET(
     }
 
     // Verify user owns this session
-    if (session.wp_user_id !== userId) {
+    if (String(session.wp_user_id) !== String(userId)) {
       console.log(`[sessions/id] User ${userId} attempted to access session owned by ${session.wp_user_id}`);
       return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
     }
@@ -72,7 +72,7 @@ export async function PUT(
     }
 
     // Verify user owns this session
-    if (existingSession.wp_user_id !== userId) {
+    if (String(existingSession.wp_user_id) !== String(userId)) {
       console.log(`[sessions/id] User ${userId} attempted to update session owned by ${existingSession.wp_user_id}`);
       return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
     }
@@ -135,7 +135,7 @@ export async function DELETE(
     }
 
     // Verify user owns this session
-    if (existingSession.wp_user_id !== userId) {
+    if (String(existingSession.wp_user_id) !== String(userId)) {
       console.log(`[sessions/id] User ${userId} attempted to delete session owned by ${existingSession.wp_user_id}`);
       return NextResponse.json({ error: 'Unauthorized - Session does not belong to you' }, { status: 403 });
     }
