@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
 

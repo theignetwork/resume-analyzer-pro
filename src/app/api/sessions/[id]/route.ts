@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getUserIdFromRequest } from '@/lib/auth';
 
 // GET /api/sessions/[id] - Get specific session
