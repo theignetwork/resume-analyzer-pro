@@ -38,6 +38,7 @@ const UploadPage = () => {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showSessionBanner, setShowSessionBanner] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+// Auto-populate job fields from Career Hub context  useEffect(() => {    if (contextLoaded && user) {      console.log('[Upload] Checking for context data...');      if (user.positionTitle && !jobTitle) {        console.log('[Upload] Auto-populating job title:', user.positionTitle);        setJobTitle(user.positionTitle);      }      if (user.jobDescription && !jobDescription) {        console.log('[Upload] Auto-populating job description');        setJobDescription(user.jobDescription);      }    }  }, [contextLoaded, user]);
 
   // Fetch user's active sessions when authenticated
   useEffect(() => {
@@ -55,7 +56,7 @@ const UploadPage = () => {
         const url = `/api/sessions?wp_user_id=${user.user_id}&active_only=true`;
         console.log('[Upload] Fetching from:', url);
 
-        const response = await fetch(url);
+        const response = await authenticatedFetch(url);
         const data = await response.json();
 
         console.log('[Upload] Sessions response:', data);
