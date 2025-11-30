@@ -21,26 +21,68 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
 
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text)
-      .then(() => {
-        setCopied(true);
-        toast({
-          title: "Copied!",
-          description: `${title} content copied to clipboard`,
-        });
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(err => {
-        console.error('Failed to copy:', err);
-        toast({
-          title: "Copy failed",
-          description: "Please try again",
-          variant: "destructive",
-        });
-      });
-  };
 
+  const handleCopy = async (text: string) => {
+    // Fallback method using execCommand for iframe contexts where Clipboard API is blocked
+    const fallbackCopy = (text: string): boolean => {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      // Prevent scrolling to bottom
+      textArea.style.position = 'fixed';
+      textArea.style.top = '0';
+      textArea.style.left = '0';
+      textArea.style.width = '2em';
+      textArea.style.height = '2em';
+      textArea.style.padding = '0';
+      textArea.style.border = 'none';
+      textArea.style.outline = 'none';
+      textArea.style.boxShadow = 'none';
+      textArea.style.background = 'transparent';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+
+      let success = false;
+      try {
+        success = document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback copy failed:', err);
+      }
+      document.body.removeChild(textArea);
+      return success;
+    };
+
+    let success = false;
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        success = true;
+      } catch (err) {
+        console.log('Clipboard API blocked, using fallback method');
+        success = fallbackCopy(text);
+      }
+    } else {
+      // Use fallback for older browsers or blocked contexts
+      success = fallbackCopy(text);
+    }
+
+    if (success) {
+      setCopied(true);
+      toast({
+        title: "Copied!",
+        description: `${title} content copied to clipboard`,
+      });
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast({
+        title: "Copy failed",
+        description: "Please select the text manually and copy",
+        variant: "destructive",
+      });
+    }
+  };
   // Check if original text is a placeholder or missing
   const isOriginalMissing = !originalText || 
                             originalText === "No original content" || 
