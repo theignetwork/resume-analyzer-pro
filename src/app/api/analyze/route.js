@@ -289,39 +289,61 @@ Example format:
 
 ## 6. IMPROVED CONTENT BY SECTION
 
-CRITICAL INSTRUCTIONS:
-- For EACH section below, you MUST provide TWO things:
-  1. Under "Original [Section]": Copy the EXACT text from my resume for that section word-for-word
-  2. Under "Improved [Section]": Provide your enhanced version
-- Do NOT use placeholder text like "[See resume...]" - you must copy the ACTUAL text from my resume
-- Do NOT copy the original text verbatim into the improved section - this makes the tool look broken
-- Only say "No improvement needed" if the original is EXCEPTIONAL (perfectly written, heavily quantified, ATS-optimized)
-- Otherwise, look for ANY opportunity to improve keyword density, quantification, clarity, or ATS compatibility
-- Keep improved versions similar in length to the original
+Below I provide the ORIGINAL content from my resume for each section. For each one, write a REWRITTEN IMPROVED version that is ready to copy-paste directly into my resume.
+
+Requirements for improved versions:
+- Add relevant keywords from the job description
+- Quantify achievements (add metrics, percentages, dollar amounts, team sizes)
+- Use strong action verbs (Led, Developed, Achieved, Increased, etc.)
+- Make it ATS-optimized and scannable
+- DO NOT write instructions or placeholders - write the ACTUAL improved text
 
 ### Original Summary
-COPY THE ACTUAL SUMMARY TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
+${structuredData.summary || "(No summary found)"}
 
 ### Improved Summary
-YOUR ENHANCED VERSION OF THE SUMMARY HERE
+Write a 2-4 sentence professional summary incorporating keywords from the job description:
 
 ### Original Experience
-COPY THE ACTUAL EXPERIENCE TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
+${structuredData.workExperience?.length > 0
+  ? structuredData.workExperience.map(job => {
+      const parts = [];
+      if (job.jobTitle) parts.push(job.jobTitle);
+      if (job.organization) parts.push('at ' + job.organization);
+      if (job.dates?.startDate || job.dates?.endDate) parts.push('(' + (job.dates.startDate || '') + ' - ' + (job.dates.endDate || 'Present') + ')');
+      let result = parts.join(' ');
+      if (job.description) result += '\n' + job.description;
+      if (job.responsibilities) result += '\n' + job.responsibilities;
+      if (job.achievements) result += '\n' + job.achievements;
+      return result;
+    }).join('\n\n')
+  : "(No work experience found)"}
 
 ### Improved Experience
-YOUR ENHANCED VERSION OF THE EXPERIENCE HERE
+Rewrite each job with quantified bullet points and action verbs:
 
 ### Original Skills
-COPY THE ACTUAL SKILLS TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
+${structuredData.skills?.length > 0
+  ? structuredData.skills.map(s => s.name || s).join(', ')
+  : "(No skills found)"}
 
 ### Improved Skills
-YOUR ENHANCED VERSION OF THE SKILLS HERE
+List skills organized by category, adding missing keywords from the job description:
 
 ### Original Education
-COPY THE ACTUAL EDUCATION TEXT FROM MY RESUME HERE - NOT A PLACEHOLDER
+${structuredData.education?.length > 0
+  ? structuredData.education.map(edu => {
+      const parts = [];
+      if (edu.degree) parts.push(edu.degree);
+      if (edu.fieldOfStudy) parts.push('in ' + edu.fieldOfStudy);
+      if (edu.institution) parts.push('from ' + edu.institution);
+      if (edu.dates?.endDate) parts.push('(' + edu.dates.endDate + ')');
+      return parts.join(' ');
+    }).join('\n')
+  : "(No education found)"}
 
 ### Improved Education
-YOUR ENHANCED VERSION OF THE EDUCATION HERE
+Rewrite education section (or write "No changes needed" if already well-formatted):
 
 ## 7. ATS COMPATIBILITY ANALYSIS
 Based on the structured data provided, analyze how different ATS systems might interpret my resume:
@@ -387,11 +409,50 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
     let improvements = [];
     let dangerAlerts = [];
     let keywordAnalysis = [];
+    // Pre-populate original sections from structured data (don't rely on Claude to copy them)
+    const buildOriginalSummary = () => {
+      if (structuredData.summary) return structuredData.summary;
+      return '';
+    };
+
+    const buildOriginalExperience = () => {
+      if (!structuredData.workExperience || structuredData.workExperience.length === 0) return '';
+      return structuredData.workExperience.map(job => {
+        const parts = [];
+        if (job.jobTitle) parts.push(job.jobTitle);
+        if (job.organization) parts.push(`at ${job.organization}`);
+        if (job.dates?.startDate || job.dates?.endDate) {
+          parts.push(`(${job.dates.startDate || ''} - ${job.dates.endDate || 'Present'})`);
+        }
+        if (job.description) parts.push(`\n${job.description}`);
+        if (job.responsibilities) parts.push(`\n${job.responsibilities}`);
+        if (job.achievements) parts.push(`\n${job.achievements}`);
+        return parts.join(' ').trim();
+      }).join('\n\n');
+    };
+
+    const buildOriginalSkills = () => {
+      if (!structuredData.skills || structuredData.skills.length === 0) return '';
+      return structuredData.skills.map(skill => skill.name || skill).join(', ');
+    };
+
+    const buildOriginalEducation = () => {
+      if (!structuredData.education || structuredData.education.length === 0) return '';
+      return structuredData.education.map(edu => {
+        const parts = [];
+        if (edu.degree) parts.push(edu.degree);
+        if (edu.fieldOfStudy) parts.push(`in ${edu.fieldOfStudy}`);
+        if (edu.institution) parts.push(`from ${edu.institution}`);
+        if (edu.dates?.endDate) parts.push(`(${edu.dates.endDate})`);
+        return parts.join(' ').trim();
+      }).join('\n');
+    };
+
     let improvedSections = {
-      summary: { original: '', improved: '' },
-      experience: { original: '', improved: '' },
-      skills: { original: '', improved: '' },
-      education: { original: '', improved: '' }
+      summary: { original: buildOriginalSummary(), improved: '' },
+      experience: { original: buildOriginalExperience(), improved: '' },
+      skills: { original: buildOriginalSkills(), improved: '' },
+      education: { original: buildOriginalEducation(), improved: '' }
     };
 
     try {
@@ -446,33 +507,39 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
         keywordAnalysis = cleanupKeywords(rawKeywords);
       }
       
-      // Extract sections with improved pattern matching
+      // Extract ONLY the improved sections from Claude (we already have originals from structured data)
       const patterns = {
         summary: ["summary", "profile", "professional summary"],
         experience: ["experience", "work experience", "employment"],
         skills: ["skills", "qualifications", "expertise"],
         education: ["education", "academic", "degree"]
       };
-      
+
       for (const [section, alternatives] of Object.entries(patterns)) {
         const sectionPattern = alternatives.join("|");
         try {
           const extractedSection = extractSectionImproved(analysisText, sectionPattern);
-          if (extractedSection?.original || extractedSection?.improved) {
-            improvedSections[section] = extractedSection;
+          // Only update improved text from Claude, keep our structured data originals
+          if (extractedSection?.improved && !isPlaceholderText(extractedSection.improved)) {
+            improvedSections[section].improved = extractedSection.improved;
+          }
+          // If Claude provided a better original text (not a placeholder), use it
+          if (extractedSection?.original &&
+              !isPlaceholderText(extractedSection.original) &&
+              extractedSection.original.length > improvedSections[section].original.length) {
+            improvedSections[section].original = extractedSection.original;
           }
         } catch (err) {
           console.warn(`⚠️ Failed to extract ${section} section:`, err.message);
         }
       }
-      
-      // Populate default content if missing
-      if (!improvedSections.summary.original && !improvedSections.summary.improved) {
-        if (structuredData.summary) {
-          improvedSections.summary.original = structuredData.summary;
-          console.log("ℹ️ Using structured data for missing summary section");
-        }
-      }
+
+      console.log("ℹ️ Improved sections with pre-populated originals:", {
+        summary: { origLen: improvedSections.summary.original.length, impLen: improvedSections.summary.improved.length },
+        experience: { origLen: improvedSections.experience.original.length, impLen: improvedSections.experience.improved.length },
+        skills: { origLen: improvedSections.skills.original.length, impLen: improvedSections.skills.improved.length },
+        education: { origLen: improvedSections.education.original.length, impLen: improvedSections.education.improved.length }
+      });
       
       console.log("✅ Data extraction completed successfully");
     } catch (extractionError) {
@@ -894,4 +961,45 @@ function cleanupKeywords(rawKeywords) {
   
   // Remove duplicates and limit
   return [...new Set(cleanKeywords)].slice(0, 15);
+}
+
+// Helper function to detect placeholder text from Claude
+function isPlaceholderText(text) {
+  if (!text || typeof text !== 'string') return true;
+
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return true;
+
+  // Common placeholder patterns Claude might return
+  const placeholderPatterns = [
+    /^\[.*\]$/,                          // Text wrapped in brackets like [See resume...]
+    /\[See (the |resume|your)/i,         // [See the...], [See resume...], [See your...]
+    /\[Summarize/i,                       // [Summarize key points...]
+    /\[Copy (the |your )?/i,             // [Copy the actual text...]
+    /\[Insert/i,                          // [Insert actual content...]
+    /\[Add/i,                             // [Add your...]
+    /\[Include/i,                         // [Include...]
+    /\[Provide/i,                         // [Provide...]
+    /\[Your (.*) here\]/i,               // [Your summary here]
+    /\[Write/i,                          // [Write an improved...]
+    /\[Rewrite/i,                        // [Rewrite the...]
+    /\[List/i,                           // [List skills...]
+    /COPY THE ACTUAL/i,                   // Instructions to copy
+    /NOT A PLACEHOLDER/i,                 // Instructions about placeholders
+    /from (the |my |your )?resume/i,     // References to "from resume"
+    /^Write a \d+-\d+ sentence/i,        // Instruction: Write a 2-4 sentence...
+    /^Rewrite (each|the|this)/i,         // Instruction: Rewrite each job...
+    /^List skills/i,                      // Instruction: List skills...
+    /focusing on highlighting/i,          // Part of instruction text
+    /incorporating keywords/i,            // Part of instruction text
+  ];
+
+  for (const pattern of placeholderPatterns) {
+    if (pattern.test(trimmed)) {
+      console.log(`⚠️ Detected placeholder text: "${trimmed.substring(0, 50)}..."`);
+      return true;
+    }
+  }
+
+  return false;
 }

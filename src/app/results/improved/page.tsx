@@ -83,16 +83,40 @@ const ComparisonSection: React.FC<ComparisonSectionProps> = ({ title, originalTe
       });
     }
   };
+  // Check if text is a placeholder or instruction
+  const isPlaceholder = (text: string) => {
+    if (!text || text.trim().length === 0) return true;
+    const placeholderPatterns = [
+      /\[See (the |resume|your)/i,
+      /\[Summarize/i,
+      /\[Copy/i,
+      /\[Insert/i,
+      /\[Add/i,
+      /\[Include/i,
+      /\[Provide/i,
+      /\[Write/i,
+      /\[Rewrite/i,
+      /\[List/i,
+      /\[Your .* here\]/i,
+      /^\[.*\]$/,
+      /^Write a \d+-\d+ sentence/i,
+      /^Rewrite (each|the|this)/i,
+      /^List skills/i,
+      /focusing on highlighting/i,
+      /incorporating keywords/i,
+    ];
+    return placeholderPatterns.some(pattern => pattern.test(text.trim()));
+  };
+
   // Check if original text is a placeholder or missing
-  const isOriginalMissing = !originalText || 
-                            originalText === "No original content" || 
-                            originalText.includes("[See the") || 
-                            originalText.trim().length === 0;
-  
-  // Check if improved text is missing
-  const isImprovedMissing = !improvedText || 
-                           improvedText === "No improved content" || 
-                           improvedText.trim().length === 0;
+  const isOriginalMissing = !originalText ||
+                            originalText === "No original content" ||
+                            isPlaceholder(originalText);
+
+  // Check if improved text is missing or a placeholder
+  const isImprovedMissing = !improvedText ||
+                           improvedText === "No improved content" ||
+                           isPlaceholder(improvedText);
 
   return (
     <Card className="bg-card/80 backdrop-blur-sm border border-border">
@@ -276,25 +300,93 @@ const ImprovedContentPage = () => {
   };
   
   // Helper function to check if a section should be shown
-  const shouldShowSection = (section) => {
-    // Always show if it has improved content
-    if (improvedSections[section]?.improved && improvedSections[section].improved.trim() !== '') 
+  const shouldShowSection = (section: string) => {
+    const improved = improvedSections[section]?.improved;
+    // Show if it has improved content that is NOT a placeholder
+    if (improved && improved.trim() !== '' && !isTextPlaceholder(improved)) {
       return true;
-      
-    // Don't show empty sections
+    }
+    // Don't show empty or placeholder sections
     return false;
   };
   
-  // Process original text to handle placeholders
-  const getOriginalText = (section) => {
-    const text = improvedSections[section]?.original || "";
-    
-    // If text appears to be a placeholder, return a clear message
-    if (text.includes("[See the") || text.trim() === "") {
-      return "No original content was extracted from your resume.";
+  // Helper to check if text is a placeholder or instruction
+  const isTextPlaceholder = (text: string) => {
+    if (!text || text.trim().length === 0) return true;
+    const placeholderPatterns = [
+      /\[See (the |resume|your)/i,
+      /\[Summarize/i,
+      /\[Copy/i,
+      /\[Insert/i,
+      /\[Add/i,
+      /\[Include/i,
+      /\[Provide/i,
+      /\[Write/i,
+      /\[Rewrite/i,
+      /\[List/i,
+      /\[Your .* here\]/i,
+      /^\[.*\]$/,
+      /^Write a \d+-\d+ sentence/i,
+      /^Rewrite (each|the|this)/i,
+      /^List skills/i,
+      /focusing on highlighting/i,
+      /incorporating keywords/i,
+    ];
+    return placeholderPatterns.some(pattern => pattern.test(text.trim()));
+  };
+
+  // Get structured data from resume as fallback
+  const getStructuredDataFallback = (section: string) => {
+    const structuredData = analysis?.structured_data;
+    if (!structuredData) return "";
+
+    switch (section) {
+      case 'summary':
+        return structuredData.summary || "";
+      case 'experience':
+        if (!structuredData.workExperience?.length) return "";
+        return structuredData.workExperience.map((job: any) => {
+          const parts = [];
+          if (job.jobTitle) parts.push(job.jobTitle);
+          if (job.organization) parts.push(`at ${job.organization}`);
+          if (job.dates?.startDate || job.dates?.endDate) {
+            parts.push(`(${job.dates.startDate || ''} - ${job.dates.endDate || 'Present'})`);
+          }
+          if (job.description) parts.push(`\n${job.description}`);
+          return parts.join(' ').trim();
+        }).join('\n\n');
+      case 'skills':
+        if (!structuredData.skills?.length) return "";
+        return structuredData.skills.map((skill: any) => skill.name || skill).join(', ');
+      case 'education':
+        if (!structuredData.education?.length) return "";
+        return structuredData.education.map((edu: any) => {
+          const parts = [];
+          if (edu.degree) parts.push(edu.degree);
+          if (edu.institution) parts.push(`from ${edu.institution}`);
+          return parts.join(' ').trim();
+        }).join('\n');
+      default:
+        return "";
     }
-    
-    return text;
+  };
+
+  // Process original text to handle placeholders with structured data fallback
+  const getOriginalText = (section: string) => {
+    const text = improvedSections[section]?.original || "";
+
+    // If text is valid (not a placeholder), use it
+    if (!isTextPlaceholder(text)) {
+      return text;
+    }
+
+    // Try to get from structured data as fallback
+    const fallbackText = getStructuredDataFallback(section);
+    if (fallbackText) {
+      return fallbackText;
+    }
+
+    return "";
   };
   
   return (
