@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { UploadCloud, CheckCircle, Sparkles } from 'lucide-react';
+import { UploadCloud, CheckCircle, Sparkles, FileText, Star } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import SessionBanner from '@/components/SessionBanner';
@@ -20,6 +20,17 @@ interface Session {
   total_uploads: number;
   latest_score: number | null;
   updated_at: string;
+}
+
+interface CareerHubResume {
+  id: string;
+  title: string;
+  file_type: string;
+  file_name: string;
+  file_size: number;
+  content: string; // URL
+  is_primary?: boolean;
+  created_at: string;
 }
 
 const UploadPage = () => {
@@ -38,6 +49,12 @@ const UploadPage = () => {
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [showSessionBanner, setShowSessionBanner] = useState(false);
   const [sessionsLoading, setSessionsLoading] = useState(false);
+
+  // Career Hub resumes state
+  const [careerHubResumes, setCareerHubResumes] = useState<CareerHubResume[]>([]);
+  const [careerHubLoading, setCareerHubLoading] = useState(false);
+  const [selectedCareerHubResume, setSelectedCareerHubResume] = useState<CareerHubResume | null>(null);
+  const [downloadingResume, setDownloadingResume] = useState(false);
 // Auto-populate job fields from Career Hub context  useEffect(() => {    if (contextLoaded && user) {      console.log('[Upload] Checking for context data...');      if (user.positionTitle && !jobTitle) {        console.log('[Upload] Auto-populating job title:', user.positionTitle);        setJobTitle(user.positionTitle);      }      if (user.jobDescription && !jobDescription) {        console.log('[Upload] Auto-populating job description');        setJobDescription(user.jobDescription);      }    }  }, [contextLoaded, user]);
 
   // Fetch user's active sessions when authenticated
@@ -77,6 +94,87 @@ const UploadPage = () => {
 
     fetchSessions();
   }, [user]);
+
+  // Fetch resumes from Career Hub when authenticated
+  useEffect(() => {
+    const fetchCareerHubResumes = async () => {
+      const token = sessionStorage.getItem('auth_token');
+      if (!token || !user?.user_id) {
+        console.log('[Upload] No auth token or user, skipping Career Hub fetch');
+        return;
+      }
+
+      const careerHubUrl = process.env.NEXT_PUBLIC_CAREER_HUB_URL;
+      if (!careerHubUrl) {
+        console.log('[Upload] Career Hub URL not configured');
+        return;
+      }
+
+      setCareerHubLoading(true);
+      try {
+        console.log('[Upload] Fetching resumes from Career Hub...');
+        const response = await fetch(`${careerHubUrl}/api/public/documents?type=resume`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch Career Hub resumes');
+        }
+
+        const data = await response.json();
+        console.log('[Upload] Career Hub resumes:', data);
+
+        if (data.documents && data.documents.length > 0) {
+          setCareerHubResumes(data.documents);
+        }
+      } catch (err) {
+        console.error('[Upload] Error fetching Career Hub resumes:', err);
+      } finally {
+        setCareerHubLoading(false);
+      }
+    };
+
+    fetchCareerHubResumes();
+  }, [user]);
+
+  // Handle selecting a resume from Career Hub
+  const handleSelectCareerHubResume = async (resume: CareerHubResume) => {
+    setSelectedCareerHubResume(resume);
+    setDownloadingResume(true);
+    setError('');
+
+    try {
+      console.log('[Upload] Downloading resume from Career Hub:', resume.title);
+
+      // Fetch the file from the URL
+      const response = await fetch(resume.content);
+      if (!response.ok) {
+        throw new Error('Failed to download resume file');
+      }
+
+      const blob = await response.blob();
+      const downloadedFile = new File([blob], resume.file_name, { type: 'application/pdf' });
+
+      console.log('[Upload] Resume downloaded successfully');
+      setFile(downloadedFile);
+      setFileName(resume.file_name);
+    } catch (err) {
+      console.error('[Upload] Error downloading resume:', err);
+      setError('Failed to load resume from Career Hub. Please try uploading manually.');
+      setSelectedCareerHubResume(null);
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
+
+  // Clear Career Hub selection
+  const handleClearCareerHubSelection = () => {
+    setSelectedCareerHubResume(null);
+    setFile(null);
+    setFileName('');
+  };
 
   // Handle session selection
   const handleSelectSession = (session: Session) => {
@@ -308,6 +406,84 @@ const UploadPage = () => {
           <p className="text-green-300/70 text-xs mt-1">
             This will be version {selectedSession.total_uploads + 1}
           </p>
+        </div>
+      )}
+
+      {/* Career Hub Resumes Section */}
+      {contextLoaded && user && careerHubResumes.length > 0 && (
+        <div className="w-full max-w-2xl bg-card/50 backdrop-blur-sm border border-primary/30 rounded-lg p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="text-primary" size={20} />
+            <h3 className="text-white font-semibold">My Resumes from Career Hub</h3>
+          </div>
+
+          {selectedCareerHubResume ? (
+            <div className="flex items-center justify-between bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="text-green-500" size={20} />
+                <div className="text-left">
+                  <p className="text-white font-medium">{selectedCareerHubResume.title}</p>
+                  <p className="text-green-300/70 text-xs">{selectedCareerHubResume.file_name}</p>
+                </div>
+                {selectedCareerHubResume.is_primary && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/20 text-primary text-xs rounded-full">
+                    <Star size={12} /> Primary
+                  </span>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => { e.stopPropagation(); handleClearCareerHubSelection(); }}
+                className="text-muted-foreground hover:text-white"
+              >
+                Change
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-muted-foreground text-sm mb-3">Select a resume or upload a new one below</p>
+              {careerHubLoading ? (
+                <p className="text-muted-foreground text-sm">Loading resumes...</p>
+              ) : (
+                <div className="grid gap-2">
+                  {careerHubResumes.map((resume) => (
+                    <button
+                      key={resume.id}
+                      onClick={() => handleSelectCareerHubResume(resume)}
+                      disabled={downloadingResume}
+                      className="flex items-center justify-between w-full p-3 bg-card/50 border border-border rounded-lg hover:border-primary hover:bg-primary/5 transition-all text-left disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <FileText className="text-primary/70" size={18} />
+                        <div>
+                          <p className="text-white font-medium">{resume.title}</p>
+                          <p className="text-muted-foreground text-xs">{resume.file_name}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {resume.is_primary && (
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/20 text-primary text-xs rounded-full">
+                            <Star size={12} /> Primary
+                          </span>
+                        )}
+                        <span className="text-primary text-sm">Select</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Divider when Career Hub resumes are shown */}
+      {contextLoaded && user && careerHubResumes.length > 0 && !selectedCareerHubResume && (
+        <div className="w-full max-w-2xl flex items-center gap-4">
+          <div className="flex-1 border-t border-border"></div>
+          <span className="text-muted-foreground text-sm">or upload a new resume</span>
+          <div className="flex-1 border-t border-border"></div>
         </div>
       )}
 
