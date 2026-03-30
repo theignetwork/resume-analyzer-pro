@@ -3,8 +3,12 @@ import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
 import Anthropic from '@anthropic-ai/sdk';
-// pdf-parse doesn't have a default ESM export; use dynamic require
-const pdf = require('pdf-parse');
+// Lazy-load pdf-parse to avoid it trying to read a test file at import time
+let _pdfParse;
+function getPdfParse() {
+  if (!_pdfParse) _pdfParse = require('pdf-parse');
+  return _pdfParse;
+}
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
@@ -145,6 +149,7 @@ export async function POST(request) {
     // Step 2: Extract text from the PDF
     let extractedText = '';
     try {
+      const pdf = getPdfParse();
       const pdfData = await pdf(pdfBuffer);
       extractedText = pdfData.text || '';
       console.log("[parse-resume] PDF text extracted, length:", extractedText.length);
