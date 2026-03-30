@@ -15,14 +15,7 @@ console.log("🔑 Using API Key length:", apiKey?.length || 0);
 console.log("🔑 Using API Key starts with:", apiKey?.substring(0, 15) || 'undefined');
 console.log("🔑 Using API Key ends with:", apiKey?.substring(apiKey.length - 4) || 'undefined');
 
-if (!apiKey) {
-  console.error("❌ No ANTHROPIC_API_KEY found in environment variables");
-  throw new Error("ANTHROPIC_API_KEY environment variable is not set");
-}
-
-const anthropic = new Anthropic({
-  apiKey: apiKey,
-});
+const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 
 export async function POST(request) {
   try {
@@ -43,6 +36,11 @@ export async function POST(request) {
     );
     if (!rateLimitResult.success) {
       return rateLimitResult.response;
+    }
+
+    if (!anthropic) {
+      console.error("❌ No ANTHROPIC_API_KEY found in environment variables");
+      return NextResponse.json({ error: 'Server configuration error: missing API key' }, { status: 500 });
     }
 
     console.log("🔍 API route called - /api/analyze");
@@ -101,106 +99,87 @@ export async function POST(request) {
 
     try {
       const parsedData = resume.resume_structured_data;
-      if (parsedData?.data) {
-        const data = parsedData.data;
-
-        if (data.name) structuredData.personalInfo.name = data.name.raw;
-        if (data.phoneNumbers?.length) structuredData.personalInfo.phone = data.phoneNumbers[0].raw;
-        if (data.emails?.length) structuredData.personalInfo.email = data.emails[0].raw;
-        if (data.location) structuredData.personalInfo.location = data.location.raw;
-
-        if (data.summary?.raw) {
-          structuredData.summary = data.summary.raw;
-          confidenceScores.sections.summary = data.summary.confidence || 0;
+      if (parsedData) {
+        // Claude-parsed format: fields are at the top level (personalInfo, summary, workExperience, etc.)
+        if (parsedData.personalInfo) {
+          structuredData.personalInfo = {
+            name: parsedData.personalInfo.name || "",
+            phone: parsedData.personalInfo.phone || "",
+            email: parsedData.personalInfo.email || "",
+            location: parsedData.personalInfo.location || ""
+          };
         }
 
-        if (Array.isArray(data.skills)) {
-          structuredData.skills = data.skills.map(skill => ({
-            name: skill.name || skill.raw,
+        if (parsedData.summary) {
+          structuredData.summary = parsedData.summary;
+        }
+
+        if (Array.isArray(parsedData.skills)) {
+          structuredData.skills = parsedData.skills.map(skill => ({
+            name: skill.name || "",
             level: skill.level || "",
             confidence: skill.confidence || 0
           }));
-          const scores = data.skills.map(s => s.confidence).filter(Number);
-          if (scores.length) {
-            confidenceScores.sections.skills = scores.reduce((a, b) => a + b, 0) / scores.length;
-          }
         }
 
-        if (Array.isArray(data.workExperience)) {
-          // DEBUG: Log the raw work experience data structure
-          console.log("=== WORK EXPERIENCE DEBUG (analyze route) ===");
-          console.log("Number of work experience entries:", data.workExperience.length);
-          if (data.workExperience[0]) {
-            console.log("First work experience raw object:", JSON.stringify(data.workExperience[0], null, 2));
-            console.log("Available keys:", Object.keys(data.workExperience[0]));
-          }
-          console.log("=============================================");
-
-          structuredData.workExperience = data.workExperience.map(job => {
-            // Try multiple possible field structures (defensive approach)
-            const jobTitle = job.jobTitle?.raw || job.jobTitle || job.title?.raw || job.title || "";
-            const organization = job.organization?.raw || job.organization || job.company?.raw || job.company || "";
-            const location = job.location?.raw || job.location || "";
-            const startDate = job.dates?.startDate?.raw || job.dates?.startDate || job.startDate?.raw || job.startDate || "";
-            const endDate = job.dates?.endDate?.raw || job.dates?.endDate || job.endDate?.raw || job.endDate || "";
-
-            console.log(`Extracted: "${jobTitle}" at "${organization}" (${startDate} - ${endDate})`);
-
-            return {
-              jobTitle,
-              organization,
-              location,
-              dates: { startDate, endDate },
-              description: job.description || "",
-              responsibilities: Array.isArray(job.responsibilities)
-                ? job.responsibilities.map(r => r.raw || r).join("\n")
-                : job.responsibilities || "",
-              achievements: Array.isArray(job.achievements)
-                ? job.achievements.map(a => a.raw || a).join("\n")
-                : job.achievements || "",
-              confidence: job.confidence || 0
-            };
-          });
-          const scores = data.workExperience.map(j => j.confidence).filter(Number);
-          if (scores.length) {
-            confidenceScores.sections.workExperience = scores.reduce((a, b) => a + b, 0) / scores.length;
-          }
-        }
-
-        if (Array.isArray(data.education)) {
-          structuredData.education = data.education.map(edu => ({
-            institution: edu.organization?.raw || "",
-            degree: edu.accreditation?.education || edu.accreditation?.raw || "",
-            fieldOfStudy: edu.accreditation?.educationLevel || "",
+        if (Array.isArray(parsedData.workExperience)) {
+          structuredData.workExperience = parsedData.workExperience.map(job => ({
+            jobTitle: job.title || "",
+            organization: job.company || "",
+            location: job.location || "",
             dates: {
-              startDate: edu.dates?.startDate?.raw || "",
-              endDate: edu.dates?.endDate?.raw || ""
+              startDate: job.startDate || "",
+              endDate: job.endDate || "Present"
             },
-            description: edu.description || "",
-            gpa: edu.grade || "",
-            confidence: edu.confidence || 0
+            description: job.description || "",
+            responsibilities: "",
+            achievements: "",
+            confidence: 0
           }));
-          const scores = data.education.map(e => e.confidence).filter(Number);
-          if (scores.length) {
-            confidenceScores.sections.education = scores.reduce((a, b) => a + b, 0) / scores.length;
-          }
         }
 
-        if (Array.isArray(data.certifications)) {
-          structuredData.certifications = data.certifications.map(cert => ({
-            name: cert.name || cert.raw || "",
+        if (Array.isArray(parsedData.education)) {
+          structuredData.education = parsedData.education.map(edu => ({
+            institution: edu.institution || "",
+            degree: edu.degree || "",
+            fieldOfStudy: "",
+            dates: {
+              startDate: "",
+              endDate: edu.graduationDate || ""
+            },
+            description: "",
+            gpa: edu.gpa || "",
+            confidence: 0
+          }));
+        }
+
+        if (Array.isArray(parsedData.certifications)) {
+          structuredData.certifications = parsedData.certifications.map(cert => ({
+            name: cert.name || "",
             issuer: cert.issuer || "",
             date: cert.date || "",
-            confidence: cert.confidence || 0
+            confidence: 0
           }));
         }
 
-        if (Array.isArray(data.languages)) {
-          structuredData.languages = data.languages.map(lang => ({
-            name: lang.name || lang.raw || "",
-            level: lang.level || "",
-            confidence: lang.confidence || 0
+        if (Array.isArray(parsedData.languages)) {
+          structuredData.languages = parsedData.languages.map(lang => ({
+            name: lang.name || "",
+            level: lang.proficiency || "",
+            confidence: 0
           }));
+        }
+
+        // Use confidence scores from the Claude-parsed sections field
+        if (parsedData.sections) {
+          confidenceScores.sections = {
+            summary: parsedData.sections.summary?.confidence || 0,
+            workExperience: parsedData.sections.workExperience?.confidence || 0,
+            education: parsedData.sections.education?.confidence || 0,
+            skills: parsedData.sections.skills?.confidence || 0,
+            certifications: parsedData.sections.certifications?.confidence || 0,
+            personalInfo: parsedData.sections.personalInfo?.confidence || 0
+          };
         }
 
         const sectionScores = Object.values(confidenceScores.sections).filter(Number);
@@ -208,7 +187,7 @@ export async function POST(request) {
           confidenceScores.overall = sectionScores.reduce((a, b) => a + b, 0) / sectionScores.length;
         }
 
-        console.log("✅ Structured data parsed from Affinda");
+        console.log("✅ Structured data parsed from resume");
       } else {
         console.warn("⚠️ No structured parser data found");
       }
@@ -227,8 +206,8 @@ ${resume.resume_text}
 ### JOB DESCRIPTION
 ${resume.job_description || "No job description provided"}
 
-### ATS STRUCTURED DATA
-This is how an Applicant Tracking System (ATS) sees my resume:
+### PARSED RESUME DATA
+This is the structured data parsed from my resume:
 ${JSON.stringify({ 
   personalInfo: structuredData.personalInfo, 
   summary: structuredData.summary, 
@@ -243,11 +222,11 @@ ${JSON.stringify({
 IMPORTANT FORMATTING INSTRUCTIONS:
 - Be sure to complete ALL sections in your response
 
-You must directly compare the ATS STRUCTURED DATA above against the JOB DESCRIPTION to assess:
-1. How well the ATS is parsing my resume
+You must directly compare the PARSED RESUME DATA above against the JOB DESCRIPTION to assess:
+1. How well an ATS would parse my resume
 2. How closely my resume matches the job requirements
-3. The quality of the ATS data (confidence scores, extracted skills, etc.)
-4. Whether key job requirements are detected by the ATS
+3. The quality of the parsed data (confidence scores, extracted skills, etc.)
+4. Whether key job requirements are detected
 
 Please provide a comprehensive analysis with these exact sections:
 
@@ -366,7 +345,7 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
     let claudeResponse;
     try {
       claudeResponse = await anthropic.messages.create({
-        model: "claude-3-haiku-20240307",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 4000,
         messages: [{
           role: "user",

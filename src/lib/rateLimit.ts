@@ -14,7 +14,7 @@ const redis = new Redis({
 });
 
 /**
- * Rate limit for resume parsing (Affinda API - expensive)
+ * Rate limit for resume parsing
  * Limit: 5 requests per hour per user
  */
 export const parseResumeLimit = new Ratelimit({

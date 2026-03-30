@@ -24,8 +24,8 @@ export default function AnalyzingPage() {
         throw new Error("No resume ID found");
       }
       
-      // Step 1: Parse the resume with Affinda
-      console.log("Parsing resume with Affinda, ID:", resumeId);
+      // Step 1: Parse the resume
+      console.log("Parsing resume, ID:", resumeId);
       const parseResponse = await authenticatedPost('/api/parse-resume', { resumeId });
       
       if (!parseResponse.ok) {

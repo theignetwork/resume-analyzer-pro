@@ -2,9 +2,89 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
+import Anthropic from '@anthropic-ai/sdk';
+// pdf-parse doesn't have a default ESM export; use dynamic require
+const pdf = require('pdf-parse');
 
-const AFFINDA_API_KEY = process.env.AFFINDA_API_KEY;
-const AFFINDA_WORKSPACE_ID = process.env.AFFINDA_WORKSPACE_ID;
+const apiKey = process.env.ANTHROPIC_API_KEY;
+const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
+
+const CLAUDE_PARSING_PROMPT = `You are an expert resume parser. I will provide you with the raw text extracted from a resume PDF. Your job is to parse this into a structured format, similar to how an Applicant Tracking System (ATS) would parse it.
+
+Return your response as a single valid JSON object with NO markdown formatting, NO code fences, NO explanation — just the raw JSON object.
+
+The JSON must follow this exact structure:
+
+{
+  "personalInfo": {
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "phone number",
+    "location": "City, State",
+    "linkedin": "linkedin URL or null",
+    "website": "website URL or null"
+  },
+  "summary": "The professional summary or objective text, exactly as written",
+  "workExperience": [
+    {
+      "company": "Company Name",
+      "title": "Job Title",
+      "startDate": "Start date as written",
+      "endDate": "End date as written or Present",
+      "location": "City, State or Remote",
+      "description": "Full text of responsibilities and achievements for this role"
+    }
+  ],
+  "education": [
+    {
+      "institution": "School Name",
+      "degree": "Degree type and field",
+      "graduationDate": "Date as written",
+      "gpa": "GPA if listed, otherwise null",
+      "honors": "Honors if listed, otherwise null"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Skill Name",
+      "confidence": 0.9,
+      "level": "Expert/Advanced/Intermediate/Beginner or null"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "Certification Name",
+      "issuer": "Issuing Organization",
+      "date": "Date if listed"
+    }
+  ],
+  "languages": [
+    {
+      "name": "Language",
+      "proficiency": "Native/Fluent/Intermediate/Basic"
+    }
+  ],
+  "sections": {
+    "summary": { "found": true, "confidence": 0.95 },
+    "workExperience": { "found": true, "confidence": 0.90 },
+    "education": { "found": true, "confidence": 0.85 },
+    "skills": { "found": true, "confidence": 0.80 },
+    "certifications": { "found": false, "confidence": 0 },
+    "personalInfo": { "found": true, "confidence": 0.95 }
+  }
+}
+
+Rules:
+- Extract ALL information present in the resume
+- For skills, assign a confidence score (0.0-1.0) based on how explicitly the skill is stated
+- For sections, set "found" to false if the section doesn't exist in the resume
+- Confidence scores should reflect how clearly the ATS would identify each section (1.0 = perfectly clear standard heading, 0.5 = implied but not labeled, 0.0 = not found)
+- If a field is not present in the resume, use null
+- Do NOT hallucinate or invent information that isn't in the resume text
+- Parse dates exactly as written in the resume
+
+RESUME TEXT:
+`;
 
 export async function POST(request) {
   try {
@@ -27,11 +107,6 @@ export async function POST(request) {
       return rateLimitResult.response;
     }
 
-    if (!AFFINDA_API_KEY || !AFFINDA_WORKSPACE_ID) {
-      console.error("Affinda configuration error");
-      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
-    }
-
     const { resumeId } = await request.json();
     if (!resumeId) return NextResponse.json({ error: 'No resumeId provided' }, { status: 400 });
 
@@ -43,7 +118,6 @@ export async function POST(request) {
     // Verify user owns this resume
     console.log("[parse-resume] Resume wp_user_id:", resume.wp_user_id, "type:", typeof resume.wp_user_id);
     console.log("[parse-resume] JWT user_id:", user.user_id, "type:", typeof user.user_id);
-    console.log("[parse-resume] String comparison:", String(resume.wp_user_id), "vs", String(user.user_id));
 
     if (String(resume.wp_user_id) !== String(user.user_id)) {
       console.error("[parse-resume] MISMATCH - User", user.user_id, "tried to access resume owned by", resume.wp_user_id);
@@ -52,137 +126,124 @@ export async function POST(request) {
 
     console.log("[parse-resume] Ownership verified for user", user.user_id);
 
-    const requestBody = {
-      url: resume.file_url,
-      wait: true,
-      workspace: AFFINDA_WORKSPACE_ID,
-      documentType: "oprLlBoq",
-      identifier: `resume-${resumeId}`
-    };
-
-    const affindaResponse = await fetch('https://api.affinda.com/v3/documents', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AFFINDA_API_KEY}`
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    const responseText = await affindaResponse.text();
-    if (!affindaResponse.ok) {
-      const errorMessage = (() => {
-        try {
-          const data = JSON.parse(responseText);
-          return data.message || data.detail || affindaResponse.statusText;
-        } catch (_) {
-          return affindaResponse.statusText;
-        }
-      })();
-      return NextResponse.json({ error: `Affinda API error: ${errorMessage}` }, { status: affindaResponse.status });
+    if (!anthropic) {
+      console.error("[parse-resume] No ANTHROPIC_API_KEY configured");
+      return NextResponse.json({ error: 'Server configuration error: missing API key' }, { status: 500 });
     }
 
-    const parsedData = JSON.parse(responseText);
-    let resumeText = extractTextFromResponse(parsedData);
+    // Step 1: Download the PDF from Supabase Storage
+    console.log("[parse-resume] Downloading PDF from:", resume.file_url);
+    const pdfResponse = await fetch(resume.file_url);
+    if (!pdfResponse.ok) {
+      console.error("[parse-resume] Failed to download PDF:", pdfResponse.status, pdfResponse.statusText);
+      return NextResponse.json({ error: 'Failed to download resume PDF' }, { status: 500 });
+    }
 
-    if (!resumeText?.trim()) {
-      const fallback = await fetch('https://api.affinda.com/v3/documents/extract-text', {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AFFINDA_API_KEY}`
-        },
-        body: JSON.stringify({ url: resume.file_url })
+    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+    console.log("[parse-resume] PDF downloaded, size:", pdfBuffer.length, "bytes");
+
+    // Step 2: Extract text from the PDF
+    let extractedText = '';
+    try {
+      const pdfData = await pdf(pdfBuffer);
+      extractedText = pdfData.text || '';
+      console.log("[parse-resume] PDF text extracted, length:", extractedText.length);
+    } catch (pdfError) {
+      console.error("[parse-resume] PDF text extraction failed:", pdfError.message);
+      extractedText = '';
+    }
+
+    if (!extractedText?.trim()) {
+      console.warn("[parse-resume] No text could be extracted from PDF (may be image-based)");
+      return NextResponse.json({
+        error: 'Could not extract text from this PDF. It may be an image-based or scanned document. Please upload a text-based PDF.'
+      }, { status: 400 });
+    }
+
+    // Step 3: Send extracted text to Claude for structured parsing
+    console.log("[parse-resume] Sending text to Claude for parsing...");
+    let claudeResponse;
+    try {
+      claudeResponse = await anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        messages: [{
+          role: "user",
+          content: CLAUDE_PARSING_PROMPT + extractedText
+        }]
       });
-      if (fallback.ok) {
-        const { text } = await fallback.json();
-        resumeText = text || resumeText;
-      }
+    } catch (claudeError) {
+      console.error("[parse-resume] Claude API error:", claudeError.message);
+      return NextResponse.json({ error: 'Resume parsing API error: ' + claudeError.message }, { status: 500 });
     }
 
-    if (!resumeText?.trim() && parsedData.meta?.pdf) {
-      resumeText = `Document text could not be automatically extracted. PDF available at: ${parsedData.meta.pdf}`;
-    }
-    if (!resumeText?.trim()) {
-      resumeText = "Text extraction failed. This may be due to the document being an image-based PDF without embedded text.";
+    const responseText = claudeResponse.content[0]?.text || '';
+    if (!responseText) {
+      console.error("[parse-resume] Claude returned empty response");
+      return NextResponse.json({ error: 'Resume parsing returned empty response' }, { status: 502 });
     }
 
-    // FIXED: Transform Affinda data to fix the skills field name issue
-    const transformedData = {
-      ...parsedData,
-      data: {
-        ...parsedData.data,
-        skills: parsedData.data?.skill || [] // Fix: Affinda uses 'skill' not 'skills'
+    // Step 4: Parse the JSON response from Claude
+    let parsedData;
+    try {
+      // Clean up response in case Claude wrapped it in code fences
+      const jsonText = responseText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+      parsedData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("[parse-resume] Failed to parse Claude JSON response:", parseError.message);
+      console.error("[parse-resume] Raw response (first 500 chars):", responseText.substring(0, 500));
+      return NextResponse.json({ error: 'Failed to parse structured resume data' }, { status: 502 });
+    }
+
+    // Step 5: Build confidence scores from the sections field
+    const sections = parsedData.sections || {};
+    const sectionKeys = ['summary', 'workExperience', 'education', 'skills', 'certifications', 'personalInfo'];
+    const sectionScores = sectionKeys.map(k => sections[k]?.confidence || 0).filter(s => s > 0);
+    const overallConfidence = sectionScores.length > 0
+      ? sectionScores.reduce((a, b) => a + b, 0) / sectionScores.length
+      : 0;
+
+    const confidenceScores = {
+      overall: overallConfidence,
+      sections: {
+        summary: sections.summary?.confidence || 0,
+        workExperience: sections.workExperience?.confidence || 0,
+        education: sections.education?.confidence || 0,
+        skills: sections.skills?.confidence || 0,
+        certifications: sections.certifications?.confidence || 0,
+        personalInfo: sections.personalInfo?.confidence || 0
       }
     };
 
-    // Add debug logging to verify the fix
-    console.log("=== AFFINDA DATA DEBUG ===");
-    console.log("Skills found in Affinda data:", parsedData.data?.skill?.length || 0);
-    console.log("Skills after transformation:", transformedData.data?.skills?.length || 0);
-    console.log("Work Experience in parsedData:", parsedData.data?.workExperience?.length || 0);
-    console.log("Certifications in parsedData:", parsedData.data?.certifications?.length || 0);
-    console.log("Languages in parsedData:", parsedData.data?.languages?.length || 0);
-    console.log("All Affinda data keys:", Object.keys(parsedData.data || {}));
-    if (parsedData.data?.workExperience?.[0]) {
-      console.log("Sample work experience object:", JSON.stringify(parsedData.data.workExperience[0], null, 2));
-    }
-    console.log("========================");
+    console.log("[parse-resume] Confidence scores:", JSON.stringify(confidenceScores));
+    console.log("[parse-resume] Skills found:", parsedData.skills?.length || 0);
+    console.log("[parse-resume] Work experience entries:", parsedData.workExperience?.length || 0);
 
-    const documentType = parsedData.meta?.documentType || 'unknown';
+    // Step 6: Update the resumes table
     const { error: updateError } = await supabase.from('resumes').update({
-      resume_structured_data: transformedData, // FIXED: Using transformed data instead of raw
-      resume_text: resumeText,
-      parser_version: `v3-${documentType}`
+      resume_text: extractedText,
+      resume_structured_data: parsedData,
+      parser_version: 'claude-haiku-4.5'
     }).eq('id', resumeId);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error("[parse-resume] Database update error:", updateError);
+      throw updateError;
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Resume parsed successfully', 
-      documentType,
-      skillsFound: transformedData.data?.skills?.length || 0 // Debug info
+    console.log("[parse-resume] Resume parsed and saved successfully");
+
+    return NextResponse.json({
+      success: true,
+      message: 'Resume parsed successfully',
+      skillsFound: parsedData.skills?.length || 0,
+      confidenceScores
     });
   } catch (error) {
-    console.error("Parse resume error:", error);
+    console.error("[parse-resume] Error:", error);
     return NextResponse.json({ error: 'API error: ' + error.message }, { status: 500 });
   }
-}
-
-function extractTextFromResponse(data) {
-  const searchPaths = [
-    'data.rawText', 'data.content', 'data.text',
-    'data.resume.rawText', 'data.resume.textAnnotation.parsed',
-    'rawText', 'content', 'text'
-  ];
-
-  for (const path of searchPaths) {
-    const parts = path.split('.');
-    let val = data;
-    for (const part of parts) val = val?.[part];
-    if (typeof val === 'string' && val.length > 100) return val;
-  }
-
-  if (Array.isArray(data?.data?.resume?.sections)) {
-    const text = data.data.resume.sections.map(s => s.text).filter(Boolean).join('\n\n');
-    if (text.length > 100) return text;
-  }
-
-  return deepSearchForText(data);
-}
-
-function deepSearchForText(obj, depth = 0, maxDepth = 5) {
-  if (depth > maxDepth || !obj) return '';
-  if (typeof obj === 'string' && obj.length > 100) return obj;
-  if (Array.isArray(obj)) return obj.map(o => deepSearchForText(o, depth + 1)).find(Boolean) || '';
-  if (typeof obj === 'object') {
-    for (const key of Object.keys(obj)) {
-      const val = deepSearchForText(obj[key], depth + 1);
-      if (val) return val;
-    }
-  }
-  return '';
 }
