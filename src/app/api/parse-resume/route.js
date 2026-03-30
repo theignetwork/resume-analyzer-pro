@@ -94,12 +94,12 @@ export async function POST(request) {
     }
     console.log(`[parse-resume] Authenticated request from user ${user.user_id}`);
 
-    // Rate limit check (5 requests per hour)
+    // Rate limit check (20 requests per hour)
     const rateLimitResult = await checkRateLimit(
       parseResumeLimit,
       `user_${user.user_id}`,
       'resume parsing',
-      5
+      20
     );
     if (!rateLimitResult.success) {
       return rateLimitResult.response;
