@@ -4,6 +4,8 @@ import { getUserFromRequest } from '@/lib/auth';
 import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
 import Anthropic from '@anthropic-ai/sdk';
 
+export const maxDuration = 60;
+
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 

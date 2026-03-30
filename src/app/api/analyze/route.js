@@ -4,6 +4,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import { getUserFromRequest } from '@/lib/auth';
 import { analyzeLimit, checkRateLimit } from '@/lib/rateLimit';
 
+export const maxDuration = 60;
+
 // Debug: Check if API key is loaded
 console.log("🔑 ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
 console.log("🔑 CLAUDE_API_KEY exists:", !!process.env.CLAUDE_API_KEY);
