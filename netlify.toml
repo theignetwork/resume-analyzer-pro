@@ -3,7 +3,9 @@
   publish = ".next"
 
 [functions]
+  directory = "netlify/functions"
   external_node_modules = ["@anthropic-ai/sdk"]
+  node_bundler = "esbuild"
 
 [[headers]]
   for = "/_next/static/*"
