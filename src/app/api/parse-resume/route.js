@@ -3,17 +3,11 @@ import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getUserFromRequest } from '@/lib/auth';
 import { parseResumeLimit, checkRateLimit } from '@/lib/rateLimit';
 import Anthropic from '@anthropic-ai/sdk';
-// Lazy-load pdf-parse to avoid it trying to read a test file at import time
-let _pdfParse;
-function getPdfParse() {
-  if (!_pdfParse) _pdfParse = require('pdf-parse');
-  return _pdfParse;
-}
 
 const apiKey = process.env.ANTHROPIC_API_KEY;
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 
-const CLAUDE_PARSING_PROMPT = `You are an expert resume parser. I will provide you with the raw text extracted from a resume PDF. Your job is to parse this into a structured format, similar to how an Applicant Tracking System (ATS) would parse it.
+const CLAUDE_PARSING_PROMPT = `You are an expert resume parser. I have attached a resume PDF. Your job is to read it and parse the content into a structured format, similar to how an Applicant Tracking System (ATS) would parse it.
 
 Return your response as a single valid JSON object with NO markdown formatting, NO code fences, NO explanation — just the raw JSON object.
 
@@ -86,8 +80,6 @@ Rules:
 - If a field is not present in the resume, use null
 - Do NOT hallucinate or invent information that isn't in the resume text
 - Parse dates exactly as written in the resume
-
-RESUME TEXT:
 `;
 
 export async function POST(request) {
@@ -144,29 +136,11 @@ export async function POST(request) {
     }
 
     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+    const pdfBase64 = pdfBuffer.toString('base64');
     console.log("[parse-resume] PDF downloaded, size:", pdfBuffer.length, "bytes");
 
-    // Step 2: Extract text from the PDF
-    let extractedText = '';
-    try {
-      const pdf = getPdfParse();
-      const pdfData = await pdf(pdfBuffer);
-      extractedText = pdfData.text || '';
-      console.log("[parse-resume] PDF text extracted, length:", extractedText.length);
-    } catch (pdfError) {
-      console.error("[parse-resume] PDF text extraction failed:", pdfError.message);
-      extractedText = '';
-    }
-
-    if (!extractedText?.trim()) {
-      console.warn("[parse-resume] No text could be extracted from PDF (may be image-based)");
-      return NextResponse.json({
-        error: 'Could not extract text from this PDF. It may be an image-based or scanned document. Please upload a text-based PDF.'
-      }, { status: 400 });
-    }
-
-    // Step 3: Send extracted text to Claude for structured parsing
-    console.log("[parse-resume] Sending text to Claude for parsing...");
+    // Step 2: Send PDF directly to Claude for parsing (Claude reads PDFs natively)
+    console.log("[parse-resume] Sending PDF to Claude for parsing...");
     let claudeResponse;
     try {
       claudeResponse = await anthropic.messages.create({
@@ -174,7 +148,20 @@ export async function POST(request) {
         max_tokens: 4096,
         messages: [{
           role: "user",
-          content: CLAUDE_PARSING_PROMPT + extractedText
+          content: [
+            {
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: pdfBase64
+              }
+            },
+            {
+              type: "text",
+              text: CLAUDE_PARSING_PROMPT
+            }
+          ]
         }]
       });
     } catch (claudeError) {
@@ -227,9 +214,37 @@ export async function POST(request) {
     console.log("[parse-resume] Skills found:", parsedData.skills?.length || 0);
     console.log("[parse-resume] Work experience entries:", parsedData.workExperience?.length || 0);
 
+    // Build resume_text from parsed data for the analyze route
+    const resumeTextParts = [];
+    if (parsedData.personalInfo?.name) resumeTextParts.push(parsedData.personalInfo.name);
+    if (parsedData.personalInfo?.email) resumeTextParts.push(parsedData.personalInfo.email);
+    if (parsedData.personalInfo?.phone) resumeTextParts.push(parsedData.personalInfo.phone);
+    if (parsedData.personalInfo?.location) resumeTextParts.push(parsedData.personalInfo.location);
+    if (parsedData.summary) resumeTextParts.push('\n' + parsedData.summary);
+    if (parsedData.workExperience?.length) {
+      resumeTextParts.push('\nWork Experience:');
+      for (const job of parsedData.workExperience) {
+        resumeTextParts.push(`${job.title || ''} at ${job.company || ''} (${job.startDate || ''} - ${job.endDate || ''})`);
+        if (job.description) resumeTextParts.push(job.description);
+      }
+    }
+    if (parsedData.education?.length) {
+      resumeTextParts.push('\nEducation:');
+      for (const edu of parsedData.education) {
+        resumeTextParts.push(`${edu.degree || ''} - ${edu.institution || ''} (${edu.graduationDate || ''})`);
+      }
+    }
+    if (parsedData.skills?.length) {
+      resumeTextParts.push('\nSkills: ' + parsedData.skills.map(s => s.name).join(', '));
+    }
+    if (parsedData.certifications?.length) {
+      resumeTextParts.push('\nCertifications: ' + parsedData.certifications.map(c => c.name).join(', '));
+    }
+    const resumeText = resumeTextParts.join('\n');
+
     // Step 6: Update the resumes table
     const { error: updateError } = await supabase.from('resumes').update({
-      resume_text: extractedText,
+      resume_text: resumeText,
       resume_structured_data: parsedData,
       parser_version: 'claude-haiku-4.5'
     }).eq('id', resumeId);
