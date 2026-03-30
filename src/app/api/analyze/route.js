@@ -6,17 +6,7 @@ import { analyzeLimit, checkRateLimit } from '@/lib/rateLimit';
 
 export const maxDuration = 60;
 
-// Debug: Check if API key is loaded
-console.log("🔑 ANTHROPIC_API_KEY exists:", !!process.env.ANTHROPIC_API_KEY);
-console.log("🔑 CLAUDE_API_KEY exists:", !!process.env.CLAUDE_API_KEY);
-console.log("🔑 All env keys:", Object.keys(process.env).filter(k => k.includes('API')).join(', '));
-
 const apiKey = process.env.ANTHROPIC_API_KEY;
-console.log("🔑 Using API Key exists:", !!apiKey);
-console.log("🔑 Using API Key length:", apiKey?.length || 0);
-console.log("🔑 Using API Key starts with:", apiKey?.substring(0, 15) || 'undefined');
-console.log("🔑 Using API Key ends with:", apiKey?.substring(apiKey.length - 4) || 'undefined');
-
 const anthropic = apiKey ? new Anthropic({ apiKey }) : null;
 
 export async function POST(request) {
@@ -208,27 +198,13 @@ ${resume.resume_text}
 ### JOB DESCRIPTION
 ${resume.job_description || "No job description provided"}
 
-### PARSED RESUME DATA
-This is the structured data parsed from my resume:
-${JSON.stringify({ 
-  personalInfo: structuredData.personalInfo, 
-  summary: structuredData.summary, 
-  skills: structuredData.skills, 
-  workExperience: structuredData.workExperience, 
-  education: structuredData.education, 
-  certifications: structuredData.certifications, 
-  languages: structuredData.languages, 
-  confidenceScores: confidenceScores 
-}, null, 2)}
+### PARSED SKILLS
+${structuredData.skills?.map(s => s.name).join(', ') || 'None detected'}
 
-IMPORTANT FORMATTING INSTRUCTIONS:
-- Be sure to complete ALL sections in your response
+### ATS CONFIDENCE SCORES
+${JSON.stringify(confidenceScores)}
 
-You must directly compare the PARSED RESUME DATA above against the JOB DESCRIPTION to assess:
-1. How well an ATS would parse my resume
-2. How closely my resume matches the job requirements
-3. The quality of the parsed data (confidence scores, extracted skills, etc.)
-4. Whether key job requirements are detected
+Compare my resume against the JOB DESCRIPTION to assess ATS compatibility, keyword match, content quality, and relevance.
 
 Please provide a comprehensive analysis with these exact sections:
 
@@ -348,7 +324,7 @@ In your analysis, be specific, actionable, and practical. Explain the "why" behi
     try {
       claudeResponse = await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 4000,
+        max_tokens: 3000,
         messages: [{
           role: "user",
           content: [{
